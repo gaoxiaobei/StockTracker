@@ -1,0 +1,164 @@
+{
+  "timestamp": "2025-07-25T13:32:58.084344",
+  "total_tests": 26,
+  "passed_tests": 26,
+  "failed_tests": 0,
+  "test_details": [
+    {
+      "test_name": "JSON序列化功能",
+      "success": true,
+      "details": "numpy数组序列化成功",
+      "timestamp": "2025-07-25T13:32:58.085375"
+    },
+    {
+      "test_name": "数据获取功能",
+      "success": true,
+      "details": "成功获取378条记录",
+      "timestamp": "2025-07-25T13:32:58.272388"
+    },
+    {
+      "test_name": "股票信息获取功能",
+      "success": true,
+      "details": "成功获取股票信息，包含9个字段",
+      "timestamp": "2025-07-25T13:32:58.428252"
+    },
+    {
+      "test_name": "LSTM预测模型",
+      "success": true,
+      "details": "预测价格: 12.60",
+      "timestamp": "2025-07-25T13:34:05.823718"
+    },
+    {
+      "test_name": "GRU预测模型",
+      "success": true,
+      "details": "预测价格: 12.14",
+      "timestamp": "2025-07-25T13:35:16.500448"
+    },
+    {
+      "test_name": "TRANSFORMER预测模型",
+      "success": true,
+      "details": "预测价格: 12.06",
+      "timestamp": "2025-07-25T13:35:24.333602"
+    },
+    {
+      "test_name": "RF预测模型",
+      "success": true,
+      "details": "预测价格: 12.36",
+      "timestamp": "2025-07-25T13:35:24.869405"
+    },
+    {
+      "test_name": "XGBOOST预测模型",
+      "success": true,
+      "details": "预测价格: 12.37",
+      "timestamp": "2025-07-25T13:35:25.385563"
+    },
+    {
+      "test_name": "简单移动平均线",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.597658"
+    },
+    {
+      "test_name": "指数移动平均线",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.598269"
+    },
+    {
+      "test_name": "相对强弱指数",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.600140"
+    },
+    {
+      "test_name": "MACD",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.601444"
+    },
+    {
+      "test_name": "布林带",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.602128"
+    },
+    {
+      "test_name": "随机指标",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.603240"
+    },
+    {
+      "test_name": "能量潮指标",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.605032"
+    },
+    {
+      "test_name": "成交量加权平均价格",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.605573"
+    },
+    {
+      "test_name": "蔡金资金流量",
+      "success": true,
+      "details": "计算成功，返回30个数据点",
+      "timestamp": "2025-07-25T13:35:25.606657"
+    },
+    {
+      "test_name": "风险评估功能",
+      "success": true,
+      "details": "成功计算6个风险指标",
+      "timestamp": "2025-07-25T13:35:26.045631"
+    },
+    {
+      "test_name": "投资组合分析功能",
+      "success": true,
+      "details": "分析成功完成",
+      "timestamp": "2025-07-25T13:35:26.590354"
+    },
+    {
+      "test_name": "投资组合优化功能",
+      "success": true,
+      "details": "优化成功完成",
+      "timestamp": "2025-07-25T13:35:26.994461"
+    },
+    {
+      "test_name": "回测功能",
+      "success": true,
+      "details": "回测成功，夏普比率: -9.0249",
+      "timestamp": "2025-07-25T13:35:27.218032"
+    },
+    {
+      "test_name": "交互式价格图表",
+      "success": true,
+      "details": "创建成功",
+      "timestamp": "2025-07-25T13:35:27.582836"
+    },
+    {
+      "test_name": "K线图",
+      "success": true,
+      "details": "创建成功",
+      "timestamp": "2025-07-25T13:35:27.592817"
+    },
+    {
+      "test_name": "技术指标图表",
+      "success": true,
+      "details": "创建成功",
+      "timestamp": "2025-07-25T13:35:27.608043"
+    },
+    {
+      "test_name": "Web界面功能",
+      "success": true,
+      "details": "Streamlit可用",
+      "timestamp": "2025-07-25T13:35:27.799917"
+    },
+    {
+      "test_name": "Plotly可视化",
+      "success": true,
+      "details": "Plotly可用",
+      "timestamp": "2025-07-25T13:35:27.799917"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+akshare>=1.17.26
+tensorflow>=2.19.0
+scikit-learn>=1.5.0
+matplotlib>=3.9.0
+xgboost>=2.0.0
+joblib>=1.4.0
+plotly>=5.18.0
+streamlit>=1.47.0
