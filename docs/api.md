@@ -215,6 +215,262 @@
     mc_strategy_result = predictor.monte_carlo_strategy_simulation("002607", strategy_type="ma_crossover", n_simulations=500)
     print(mc_strategy_result)
     ```
+### `plot_interactive_stock_chart(symbol: str, days: int = 60)`
+
+绘制交互式股票图表。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `days` (`int`, 可选): 显示天数，默认为60天。
+- **返回**:
+    - 无返回值，直接显示交互式图表。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_interactive_stock_chart("002607", days=30)
+    ```
+
+### `plot_candlestick_chart(symbol: str, days: int = 60)`
+
+绘制K线图（蜡烛图）。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `days` (`int`, 可选): 显示天数，默认为60天。
+- **返回**:
+    - 无返回值，直接显示K线图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_candlestick_chart("002607", days=30)
+    ```
+
+### `plot_technical_indicators_chart(symbol: str, days: int = 60)`
+
+绘制技术指标叠加图，包括简单移动平均线、相对强弱指数(RSI)和指数平滑异同移动平均线(MACD)等指标。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `days` (`int`, 可选): 显示天数，默认为60天。
+- **返回**:
+    - 无返回值，直接显示技术指标图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_technical_indicators_chart("002607", days=90)
+    ```
+
+### `plot_stock_correlation_heatmap(symbols_list: List[str], cluster: bool = False)`
+
+绘制股票相关性热力图，用于分析多只股票之间的相关性关系。
+
+- **参数**:
+    - `symbols_list` (`List[str]`): 股票代码列表 (例如: ["002607", "000001", "600000"])。
+    - `cluster` (`bool`, 可选): 是否对股票进行聚类排序，默认为False。
+- **返回**:
+    - 无返回值，直接显示相关性热力图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    symbols = ["002607", "000001", "600000"]
+    predictor.plot_stock_correlation_heatmap(symbols, cluster=True)
+    ```
+
+### `plot_3d_risk_return_visualization(portfolio_results: Dict[str, Any])`
+
+绘制3D风险-收益可视化图，用于展示投资组合的风险、收益和夏普比率之间的关系。
+
+- **参数**:
+    - `portfolio_results` (`Dict[str, Any]`): 投资组合结果数据，通常包含收益率、风险和夏普比率等指标。
+- **返回**:
+    - 无返回值，直接显示3D风险-收益可视化图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    # 假设已有投资组合结果数据
+    portfolio_results = {
+        "portfolio1": {"return": 0.12, "risk": 0.15, "sharpe_ratio": 0.8},
+        "portfolio2": {"return": 0.08, "risk": 0.10, "sharpe_ratio": 0.8},
+        "portfolio3": {"return": 0.15, "risk": 0.20, "sharpe_ratio": 0.75}
+    }
+    predictor.plot_3d_risk_return_visualization(portfolio_results)
+    ```
+
+### `plot_animated_price_chart(symbol: str, days: int = 30, show_volume: bool = False)`
+
+绘制价格变化动画图，动态展示股票价格的变化过程。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `days` (`int`, 可选): 显示天数，默认为30天。
+    - `show_volume` (`bool`, 可选): 是否显示成交量，默认为False。
+- **返回**:
+    - 无返回值，直接显示动画价格图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_animated_price_chart("002607", days=20, show_volume=True)
+    ```
+
+### `plot_prediction_with_confidence_interval(symbol: str, model_type: str = 'lstm', days: int = 5)`
+
+绘制带置信区间的预测结果图，展示股票价格预测及其不确定性范围。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `model_type` (`str`, 可选): 模型类型，默认为'lstm'。可选值包括 'lstm', 'gru', 'transformer', 'rf', 'xgboost'。
+    - `days` (`int`, 可选): 预测天数，默认为5天。
+- **返回**:
+    - 无返回值，直接显示带置信区间的预测图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_prediction_with_confidence_interval("002607", model_type="transformer", days=7)
+    ```
+
+### `plot_model_comparison_chart(symbol: str, model_types: Optional[List[str]] = None)`
+
+绘制模型性能对比图，比较不同模型对同一股票的预测表现。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `model_types` (`Optional[List[str]]`, 可选): 模型类型列表，默认为None，将使用所有支持的模型类型 ['lstm', 'gru', 'transformer', 'rf', 'xgboost']。
+- **返回**:
+    - 无返回值，直接显示模型性能对比图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_model_comparison_chart("002607", model_types=['lstm', 'gru', 'rf'])
+    ```
+
+### `plot_risk_metrics_chart(symbol: str)`
+
+绘制风险指标可视化图，展示股票的各种风险指标，如波动率、最大回撤、VaR、贝塔系数和夏普比率等。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+- **返回**:
+    - 无返回值，直接显示风险指标可视化图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_risk_metrics_chart("002607")
+    ```
+
+### `create_comprehensive_dashboard(symbol: str, model_type: str = 'lstm')`
+
+创建综合仪表板，整合股票价格趋势、预测结果、风险评估等多维度信息。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `model_type` (`str`, 可选): 模型类型，默认为'lstm'。可选值包括 'lstm', 'gru', 'transformer', 'rf', 'xgboost'。
+- **返回**:
+    - 无返回值，直接显示综合仪表板。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.create_comprehensive_dashboard("002607", model_type="gru")
+    ```
+
+### `plot_multi_stock_comparison(symbols_list: List[str], metric: str = 'close', days: int = 60)`
+
+绘制多股票比较图，用于比较多个股票在同一指标上的表现差异。
+
+- **参数**:
+    - `symbols_list` (`List[str]`): 股票代码列表 (例如: ["002607", "000001", "600000"])。
+    - `metric` (`str`, 可选): 比较的指标，默认为'close'（收盘价）。
+    - `days` (`int`, 可选): 显示天数，默认为60天。
+- **返回**:
+    - 无返回值，直接显示多股票比较图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    symbols = ["002607", "000001", "600000"]
+    predictor.plot_multi_stock_comparison(symbols, metric='close', days=90)
+    ```
+
+### `plot_portfolio_analysis_chart(stocks_dict: Dict[str, Dict], weights: Optional[List[float]] = None)`
+
+绘制投资组合分析图，展示投资组合的收益、累计收益、权重分布和风险贡献等信息。
+
+- **参数**:
+    - `stocks_dict` (`Dict[str, Dict]`): 股票数据字典，键为股票代码，值为股票信息字典（包含symbol键）。
+    - `weights` (`Optional[List[float]]`, 可选): 投资组合权重列表，如果为None则使用等权重，默认为None。
+- **返回**:
+    - 无返回值，直接显示投资组合分析图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    stocks = {
+        "002607": {"symbol": "002607", "name": "中公教育"},
+        "000001": {"symbol": "000001", "name": "平安银行"}
+    }
+    weights = [0.6, 0.4]
+    predictor.plot_portfolio_analysis_chart(stocks, weights)
+    ```
+
+### `plot_backtest_results_chart(symbol: str, strategy_type: str = "ma_crossover", **strategy_params)`
+
+绘制回测结果图，展示交易策略的回测表现，包括投资组合价值、基准价值和交易点位等信息。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `strategy_type` (`str`, 可选): 策略类型，默认为"ma_crossover"（移动平均线交叉策略）。
+    - `**strategy_params`: 策略特定参数，例如`short_window`, `long_window` (for `ma_crossover`) 或 `period`, `overbought`, `oversold` (for `rsi`)。
+- **返回**:
+    - 无返回值，直接显示回测结果图。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    predictor.plot_backtest_results_chart("002607", strategy_type="ma_crossover", short_window=10, long_window=30)
+    ```
+
+### `initialize_realtime_chart(symbol: str, window_size: int = 100)`
+
+初始化实时图表，用于创建一个空的实时数据可视化图表框架。
+
+- **参数**:
+    - `symbol` (`str`): 股票代码 (例如: "002607")。
+    - `window_size` (`int`, 可选): 显示数据点数量，默认为100个点。
+- **返回**:
+    - `go.Figure`: 实时图表对象，可用于后续更新数据。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    fig = predictor.initialize_realtime_chart("002607", window_size=50)
+    ```
+
+### `update_realtime_chart(fig: go.Figure, new_data: Dict[str, Any])`
+
+更新实时图表，向已有的实时图表中添加新的数据点并更新显示。
+
+- **参数**:
+    - `fig` (`go.Figure`): 实时图表对象，由`initialize_realtime_chart`函数创建。
+    - `new_data` (`Dict[str, Any]`): 新数据点，应包含'time'和'price'键的字典 (例如: {"time": "2023-01-01 10:00:00", "price": 10.5})。
+- **返回**:
+    - `go.Figure`: 更新后的图表对象。
+- **示例**:
+    ```python
+    import models.predictors as predictor
+
+    fig = predictor.initialize_realtime_chart("002607")
+    new_point = {"time": "2023-01-01 10:00:00", "price": 10.5}
+    updated_fig = predictor.update_realtime_chart(fig, new_point)
+    ```
 
 ## 其他常用函数
 

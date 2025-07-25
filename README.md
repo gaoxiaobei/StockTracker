@@ -61,6 +61,24 @@ StockTracker 是一个基于机器学习的股票价格预测系统，使用 aks
   - 投资组合优化（均值-方差优化、最小方差组合、风险平价组合、Black-Litterman模型）
   - 投资组合绩效评估（Alpha、Beta、信息比率、特雷诺比率、业绩归因分析）
   - 蒙特卡洛模拟用于投资组合优化和情景分析
+## 文档
+
+本项目包含全面的文档，帮助用户和开发者更好地理解和使用StockTracker系统。文档涵盖了从安装配置到开发扩展的各个方面：
+
+- [架构文档](docs/architecture.md) - 系统整体架构和模块设计
+- [安装指南](docs/installation.md) - 详细的安装和配置说明
+- [使用指南](docs/usage.md) - 系统使用方法和示例
+- [配置指南](docs/configuration.md) - 系统配置选项说明
+- [机器学习模型](docs/ml_models.md) - 各种预测模型的详细说明
+- [开发指南](docs/development.md) - 开发者扩展和贡献指南
+- [测试文档](docs/testing.md) - 测试策略和方法
+- [部署指南](docs/deployment.md) - 各种环境下的部署说明
+- [性能基准](docs/benchmarks.md) - 系统性能测试结果
+- [故障排除](docs/troubleshooting.md) - 常见问题和解决方案
+- [常见问题解答](docs/faq.md) - FAQ文档
+- [模块说明](docs/modules.md) - 各模块详细说明
+- [示例代码](docs/examples.md) - 使用示例和教程
+- [API文档](docs/api.md) - API接口说明
 
 ## 项目结构
 
@@ -78,7 +96,20 @@ StockTracker/
 │   ├── __init__.py     # 数据模块初始化文件
 │   └── fetcher.py      # 数据获取模块
 ├── docs/               # 文档目录
-│   └── __init__.py     # 文档模块初始化文件
+│   ├── api.md          # API文档
+│   ├── architecture.md   # 架构文档
+│   ├── benchmarks.md     # 性能基准测试文档
+│   ├── configuration.md  # 配置指南
+│   ├── deployment.md     # 部署指南
+│   ├── development.md    # 开发指南
+│   ├── examples.md       # 示例文档
+│   ├── faq.md            # 常见问题解答
+│   ├── installation.md   # 安装指南
+│   ├── ml_models.md      # 机器学习模型文档
+│   ├── modules.md        # 模块说明文档
+│   ├── testing.md        # 测试文档
+│   ├── troubleshooting.md # 故障排除指南
+│   └── usage.md          # 使用指南
 ├── examples/           # 示例脚本
 │   ├── __init__.py     # 示例模块初始化文件
 │   └── demo.py         # 演示脚本
@@ -204,6 +235,12 @@ print(backtest_result)
 - `joblib`
 - `plotly`
 - `streamlit`
+
+### 文档依赖项
+
+生成和查看文档可能需要以下额外依赖项：
+- `mkdocs` (可选) - 用于生成静态文档网站
+- `markdown` (可选) - 用于处理Markdown文档
 
 ## 注意事项
 
