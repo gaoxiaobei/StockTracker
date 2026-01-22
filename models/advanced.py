@@ -21,8 +21,8 @@ import joblib
 import os
 from datetime import datetime
 import json
-from typing import Tuple, Dict, Any, Optional, Union
 import warnings
+from performance_optimizer import model_cache, data_loader, memory_optimizer
 warnings.filterwarnings('ignore')
 
 # 修正tensorflow.keras导入
@@ -149,7 +149,7 @@ class AdvancedStockPredictor:
     def __init__(self, look_back=60, model_type='lstm'):
         """
         Initialize advanced stock predictor
-        
+
         Args:
             look_back: Number of historical days to use for prediction
             model_type: Type of model to use ('lstm', 'gru', 'transformer', 'rf', 'xgboost')
@@ -160,7 +160,7 @@ class AdvancedStockPredictor:
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.models_dir = 'models'
         self.model_version = None
-        
+
         # Create models directory if it doesn't exist
         if not os.path.exists(self.models_dir):
             os.makedirs(self.models_dir)
@@ -338,19 +338,41 @@ class AdvancedStockPredictor:
     def train(self, data, epochs=100, batch_size=32, validation_split=0.2):
         """
         Train model
-        
+
         Args:
             data: Training data
             epochs: Number of training epochs
             batch_size: Batch size
             validation_split: Validation split ratio
         """
+        # Check if model is already cached
+        params = {
+            'epochs': epochs,
+            'batch_size': batch_size,
+            'validation_split': validation_split,
+            'look_back': self.look_back
+        }
+
+        cached_model, cached_scaler = model_cache.get_cached_model(
+            self.model_type, data, params
+        )
+
+        if cached_model is not None and cached_scaler is not None:
+            self.model = cached_model
+            self.scaler = cached_scaler
+            return None  # Return None since model loaded from cache
+
         if self.model_type in ['lstm', 'gru', 'transformer']:
-            return self._train_neural_network(data, epochs, batch_size, validation_split)
+            result = self._train_neural_network(data, epochs, batch_size, validation_split)
         elif self.model_type in ['rf', 'xgboost']:
-            return self._train_ensemble_model(data)
+            result = self._train_ensemble_model(data)
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}")
+
+        # Cache the trained model
+        model_cache.cache_model(self.model_type, data, params, self.model, self.scaler)
+
+        return result
     
     def _train_neural_network(self, data, epochs, batch_size, validation_split):
         """

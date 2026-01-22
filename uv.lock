@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -1567,6 +1567,8 @@ dependencies = [
     { name = "akshare" },
     { name = "joblib" },
     { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
     { name = "plotly" },
     { name = "scikit-learn" },
     { name = "streamlit" },
@@ -1579,6 +1581,8 @@ requires-dist = [
     { name = "akshare", specifier = ">=1.17.26" },
     { name = "joblib", specifier = ">=1.4.0" },
     { name = "matplotlib", specifier = ">=3.9.0" },
+    { name = "numpy", specifier = ">=1.21.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
     { name = "plotly", specifier = ">=5.18.0" },
     { name = "scikit-learn", specifier = ">=1.5.0" },
     { name = "streamlit", specifier = ">=1.47.0" },

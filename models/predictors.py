@@ -6,7 +6,7 @@ import analysis.portfolio as portfolio
 import analysis.backtest as backtest
 import visualization.charts as visualization
 import pandas as pd
-from typing import Dict, Any, Union, List, Optional
+from typing import Dict, Any, List, Optional
 
 
 def predict_stock_price(symbol, days=5, model_type='lstm') -> Dict[str, Any]:
@@ -322,7 +322,7 @@ def plot_animated_price_chart(symbol, days=30, show_volume=False):
 def plot_prediction_with_confidence_interval(symbol, model_type='lstm', days=5):
     """
     绘制带置信区间的预测结果图
-    
+
     Args:
         symbol: 股票代码
         model_type: 模型类型
@@ -330,11 +330,11 @@ def plot_prediction_with_confidence_interval(symbol, model_type='lstm', days=5):
     """
     # 获取股票数据
     stock_data = data_fetcher.get_stock_data(symbol, period="daily", start_date="20200101", adjust="qfq")
-    
+
     if stock_data.empty:
         print("无法获取股票数据")
         return
-    
+
     # 创建预测器
     if model_type in ['lstm', 'gru', 'transformer', 'rf', 'xgboost']:
         # 使用新的高级预测器
@@ -342,28 +342,28 @@ def plot_prediction_with_confidence_interval(symbol, model_type='lstm', days=5):
     else:
         # 使用原有的LSTM预测器
         predictor = model.StockPredictor(look_back=60)
-    
+
     # 训练模型
     print(f"正在训练 {model_type.upper()} 模型...")
     if model_type in ['lstm', 'gru', 'transformer']:
-        history = predictor.train(stock_data, epochs=50, batch_size=32)
+        predictor.train(stock_data, epochs=50, batch_size=32)
     else:
-        history = predictor.train(stock_data)
-    
+        predictor.train(stock_data)
+
     # 预测未来价格
     print("正在预测未来价格...")
     predicted_price = predictor.predict(stock_data)
-    
+
     # 创建预测数据（这里简化处理，实际应该生成未来几天的预测）
     future_dates = pd.date_range(start=stock_data.index[-1] + pd.Timedelta(days=1), periods=days)
     predictions = pd.Series([predicted_price] * days, index=future_dates)
-    
+
     # 创建可视化器
     visualizer = visualization.StockVisualizer()
-    
+
     # 绘制预测图
-    fig = visualizer.plot_prediction_with_confidence(stock_data.tail(30), predictions, 
-                                                    symbol=symbol, 
+    fig = visualizer.plot_prediction_with_confidence(stock_data.tail(30), predictions,
+                                                    symbol=symbol,
                                                     title=f"Price Prediction with Confidence Interval - {model_type.upper()}")
     fig.show()
 
@@ -439,13 +439,16 @@ def create_comprehensive_dashboard(symbol, model_type='lstm'):
     
     # 获取预测结果
     prediction_result = predict_stock_price(symbol, model_type=model_type)
-    
+
     # 获取风险评估结果
     risk_result = assess_stock_risk(symbol)
-    
+
     # 创建综合仪表板
-    fig = visualization.create_comprehensive_dashboard(stock_data, prediction_result, risk_result)
-    fig.show()
+    if hasattr(visualization, 'create_comprehensive_dashboard'):
+        fig = visualization.create_comprehensive_dashboard(stock_data, prediction_result, risk_result)
+        fig.show()
+    else:
+        print("创建综合仪表板功能暂不可用")
 
 
 def plot_multi_stock_comparison(symbols_list, metric='close', days=60):

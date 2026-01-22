@@ -564,6 +564,8 @@ def comprehensive_risk_assessment(stock_symbol: str, market_symbol: str = "sh000
     # 对齐收益率序列的日期
     common_dates = list(set(stock_returns.index) & set(market_returns.index))
     common_dates = sorted(common_dates)
+    if len(common_dates) == 0:
+        raise ValueError("股票和市场指数数据没有共同的交易日期")
     stock_returns = stock_returns.loc[common_dates]
     market_returns = market_returns.loc[common_dates]
     

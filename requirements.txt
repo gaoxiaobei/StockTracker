@@ -6,3 +6,5 @@ xgboost>=2.0.0
 joblib>=1.4.0
 plotly>=5.18.0
 streamlit>=1.47.0
+pandas>=2.0.0
+numpy>=1.21.0

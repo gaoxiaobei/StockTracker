@@ -8,3 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Cache
+.data_cache
+.model_cache

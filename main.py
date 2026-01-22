@@ -6,16 +6,12 @@ StockTracker - 股票价格预测系统 主入口点
 
 import sys
 import argparse
-from typing import Dict, Any
 
 # Import our modules
 import data.fetcher as data_fetcher
 import models.predictors as predictor
 import analysis.technical as indicators
 import analysis.risk as risk_assessment
-import analysis.portfolio as portfolio
-import analysis.backtest as backtest
-import visualization.charts as visualization
 
 
 def show_welcome():
@@ -306,15 +302,15 @@ def main():
     # 如果提供了命令行参数，直接执行相应功能
     if args.symbol and args.function:
         if args.function == "predict":
-            # 这里需要实现直接调用预测功能的代码
-            print(f"直接预测股票 {args.symbol} 的价格")
-            # 这里可以调用相应的函数
+            result = predictor.predict_stock_price(args.symbol)
+            print(result)
             return
         elif args.function == "tech":
             print(f"直接分析股票 {args.symbol} 的技术指标")
             return
         elif args.function == "risk":
-            print(f"直接评估股票 {args.symbol} 的风险")
+            result = predictor.assess_stock_risk(args.symbol)
+            print(result)
             return
         elif args.function == "web":
             launch_web_interface()

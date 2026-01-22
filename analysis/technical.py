@@ -8,8 +8,6 @@
 """
 
 import pandas as pd
-import numpy as np
-from typing import Union, Optional
 
 
 def simple_moving_average(data: pd.DataFrame, period: int = 20, column: str = 'close') -> pd.Series:
