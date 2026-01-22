@@ -402,20 +402,19 @@ def monte_carlo_simulation(returns: pd.Series, num_simulations: int = 1000,
     mean_return = returns.mean()
     std_return = returns.std()
     
-    # 进行蒙特卡洛模拟
-    simulation_results = []
+    # Vectorized Monte Carlo simulation
+    # Generate all random returns at once: (num_simulations, time_horizon)
+    random_returns = np.random.normal(mean_return, std_return, (num_simulations, time_horizon))
     
-    for _ in range(num_simulations):
-        # 生成随机收益率序列
-        random_returns = np.random.normal(mean_return, std_return, time_horizon)
-        # 计算累积收益
-        cumulative_returns = np.cumprod(1 + random_returns)
-        # 计算最终损失（相对于初始值）
-        final_loss = 1 - cumulative_returns[-1]
-        simulation_results.append(final_loss)
+    # Calculate cumulative returns for each simulation
+    # (1 + random_returns) has same shape, then cumprod along axis 1 (time_horizon)
+    cumulative_returns = np.cumprod(1 + random_returns, axis=1)
     
-    # 转换为numpy数组
-    simulation_results = np.array(simulation_results)
+    # Final cumulative return for each simulation is the last value in each row
+    final_cumulative_returns = cumulative_returns[:, -1]
+    
+    # Calculate final loss (relative to initial value)
+    simulation_results = 1 - final_cumulative_returns
     
     # 计算置信区间
     var_95 = np.percentile(simulation_results, 95)

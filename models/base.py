@@ -4,6 +4,12 @@ import tensorflow as tf
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
+import sys
+import os
+# Add the parent directory to the path so we can import from performance_optimizer
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from performance_optimizer import model_cache
+
 # 修正tensorflow.keras导入
 Sequential = tf.keras.Sequential
 LSTM = tf.keras.layers.LSTM
@@ -70,6 +76,22 @@ class StockPredictor:
             epochs: 训练轮数
             batch_size: 批次大小
         """
+        # Check if model is already cached
+        params = {
+            'epochs': epochs,
+            'batch_size': batch_size,
+            'look_back': self.look_back
+        }
+
+        cached_model, cached_scaler = model_cache.get_cached_model(
+            "base_lstm", data, params
+        )
+
+        if cached_model is not None and cached_scaler is not None:
+            self.model = cached_model
+            self.scaler = cached_scaler
+            return None
+
         # 数据预处理
         dataset = data['close'].values.reshape(-1, 1)
         scaled_data = self.scaler.fit_transform(dataset)
@@ -99,6 +121,9 @@ class StockPredictor:
             validation_data=(X_test, y_test),
             verbose=1
         )
+        
+        # Cache the trained model
+        model_cache.cache_model("base_lstm", data, params, self.model, self.scaler)
         
         return history
     

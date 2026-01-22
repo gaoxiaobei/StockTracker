@@ -22,6 +22,10 @@ import os
 from datetime import datetime
 import json
 import warnings
+import sys
+import os
+# Add the parent directory to the path so we can import from performance_optimizer
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from performance_optimizer import model_cache, data_loader, memory_optimizer
 warnings.filterwarnings('ignore')
 
@@ -237,20 +241,34 @@ class AdvancedStockPredictor:
         Returns:
             tf.keras.Model: Transformer model
         """
-        # For now, let's use a simpler approach that we know works
-        # Using the existing imports
-        inputs = Input(shape=(input_shape[0],))
+        # input_shape is (look_back, 1) or (look_back,)
+        # TimeSeriesTransformer expects (batch, seq_len, input_dim)
         
-        # Dense layers to process the sequence
-        x = Dense(64, activation='relu')(inputs)
-        x = Dropout(0.2)(x)
-        x = Dense(32, activation='relu')(x)
-        x = Dropout(0.2)(x)
-        x = Dense(16, activation='relu')(x)
-        x = Dropout(0.2)(x)
+        num_layers = 2
+        d_model = 64
+        num_heads = 4
+        dff = 128
+        input_dim = 1 # We are using just close price
+        if len(input_shape) > 1:
+            input_dim = input_shape[1]
         
-        # Output layer
-        outputs = Dense(1)(x)
+        inputs = Input(shape=input_shape)
+        
+        # If input_shape is (look_back,), we need to expand dimensions
+        x = inputs
+        if len(input_shape) == 1:
+            x = tf.expand_dims(x, axis=-1)
+            
+        transformer = TimeSeriesTransformer(
+            num_layers=num_layers,
+            d_model=d_model,
+            num_heads=num_heads,
+            dff=dff,
+            input_dim=input_dim,
+            output_dim=1
+        )
+        
+        outputs = transformer(x)
         
         model = Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer='adam', loss='mean_squared_error')
@@ -401,23 +419,11 @@ class AdvancedStockPredictor:
         X_test, y_test = self.create_dataset(test_data, self.look_back)
         
         # Reshape data for neural networks
-        if self.model_type in ['lstm', 'gru']:
-            X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-            X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-        elif self.model_type == 'transformer':
-            # For transformer, we need to ensure the shape is correct
-            # Transformer expects 2D input: (batch_size, sequence_length)
-            # No need to add extra dimension
-            # But we need to make sure the shapes are consistent
-            pass
+        X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
         
         # Build model
-        if self.model_type in ['lstm', 'gru']:
-            input_shape = (X_train.shape[1], 1)
-        elif self.model_type == 'transformer':
-            input_shape = (X_train.shape[1],)  # Just sequence length
-        else:
-            input_shape = (X_train.shape[1],)
+        input_shape = (X_train.shape[1], 1)
         
         if self.model_type == 'lstm':
             self.model = self.build_lstm_model(input_shape)
@@ -536,15 +542,10 @@ class AdvancedStockPredictor:
         X_test = np.array(X_test)
         
         # Reshape for neural networks
-        if self.model_type in ['lstm', 'gru']:
+        if len(X_test) > 0:
             X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-        elif self.model_type == 'transformer':
-            # For transformer, ensure correct shape
-            if len(X_test.shape) == 2:
-                X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1]))
-            # Ensure we have the right input dimensions for transformer
-            if X_test.shape[0] == 0 or X_test.shape[1] == 0:
-                raise ValueError("Invalid input shape for transformer model")
+        else:
+            raise ValueError("Not enough data for prediction")
         
         # Predict
         predicted_price = self.model.predict(X_test)
@@ -713,8 +714,10 @@ class AdvancedStockPredictor:
         X_test, y_test = self.create_dataset(test_data, self.look_back)
         
         # Reshape for neural networks
-        if self.model_type in ['lstm', 'gru']:
+        if len(X_test) > 0:
             X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+        else:
+            return {'error': 'Not enough data for evaluation'}
         
         # Predict
         predictions = self.model.predict(X_test)

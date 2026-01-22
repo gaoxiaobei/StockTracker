@@ -583,49 +583,44 @@ class PortfolioAnalyzer:
         """
         n_assets = portfolio_info['n_assets']
         returns_df = portfolio_info['returns']
-        expected_returns = returns_df.mean() * 252
-        cov_matrix = portfolio_info['cov_matrix']
+        expected_returns = returns_df.mean().values * 252
+        cov_matrix = portfolio_info['cov_matrix'].values
         
-        # 存储模拟结果
-        results = np.zeros((3, n_simulations))
-        weights_record = []
+        # Vectorized Monte Carlo simulation
+        # Generate all random weights at once: (n_simulations, n_assets)
+        weights_record = np.random.random((n_simulations, n_assets))
+        weights_record = weights_record / np.sum(weights_record, axis=1)[:, np.newaxis]
         
-        for i in range(n_simulations):
-            # 生成随机权重
-            weights = np.random.random(n_assets)
-            weights = weights / np.sum(weights)
-            weights_record.append(weights)
-            
-            # 计算投资组合收益和风险
-            # 确保weights是numpy数组
-            weights_array = np.array(weights)
-            port_return = np.sum(weights_array * expected_returns)
-            port_std = np.sqrt(np.dot(weights_array.T, np.dot(cov_matrix, weights_array))) * np.sqrt(252)
-            
-            # 计算夏普比率
-            risk_free_rate = 0.03
-            sharpe_ratio = (port_return - risk_free_rate) / port_std if port_std != 0 else 0
-            
-            # 存储结果
-            results[0,i] = port_return
-            results[1,i] = port_std
-            results[2,i] = sharpe_ratio
+        # Calculate portfolio returns: (n_simulations,)
+        port_returns = np.dot(weights_record, expected_returns)
         
-        # 找到最优投资组合
-        max_sharpe_idx = np.argmax(results[2])
-        min_vol_idx = np.argmin(results[1])
+        # Calculate portfolio volatilities: (n_simulations,)
+        # variance = w.T * Cov * w
+        # Using einsum for vectorized quadratic form: sum_j sum_k w_ij * Cov_jk * w_ik
+        port_vars = np.einsum('ij,jk,ik->i', weights_record, cov_matrix, weights_record)
+        port_std = np.sqrt(port_vars) * np.sqrt(252)
+        
+        # Calculate Sharpe Ratios
+        risk_free_rate = 0.03
+        sharpe_ratios = (port_returns - risk_free_rate) / port_std
+        # Handle zero volatility
+        sharpe_ratios = np.where(port_std == 0, 0, sharpe_ratios)
+        
+        # Find optimal portfolios
+        max_sharpe_idx = np.argmax(sharpe_ratios)
+        min_vol_idx = np.argmin(port_std)
         
         return {
-            'simulated_returns': [float(r) for r in results[0]],
-            'simulated_volatilities': [float(v) for v in results[1]],
-            'simulated_sharpe_ratios': [float(s) for s in results[2]],
-            'max_sharpe_ratio': float(results[2, max_sharpe_idx]),
-            'return_for_max_sharpe': float(results[0, max_sharpe_idx]),
-            'volatility_for_max_sharpe': float(results[1, max_sharpe_idx]),
+            'simulated_returns': [float(r) for r in port_returns],
+            'simulated_volatilities': [float(v) for v in port_std],
+            'simulated_sharpe_ratios': [float(s) for s in sharpe_ratios],
+            'max_sharpe_ratio': float(sharpe_ratios[max_sharpe_idx]),
+            'return_for_max_sharpe': float(port_returns[max_sharpe_idx]),
+            'volatility_for_max_sharpe': float(port_std[max_sharpe_idx]),
             'max_sharpe_weights': [float(w) for w in weights_record[max_sharpe_idx]],
-            'min_volatility': float(results[1, min_vol_idx]),
-            'return_for_min_vol': float(results[0, min_vol_idx]),
-            'sharpe_for_min_vol': float(results[2, min_vol_idx]),
+            'min_volatility': float(port_std[min_vol_idx]),
+            'return_for_min_vol': float(port_returns[min_vol_idx]),
+            'sharpe_for_min_vol': float(sharpe_ratios[min_vol_idx]),
             'min_vol_weights': [float(w) for w in weights_record[min_vol_idx]],
             'n_simulations': int(n_simulations)
         }

@@ -1067,14 +1067,16 @@ def monte_carlo_simulation(returns: List[float],
     mean_return = np.mean(returns)
     std_return = np.std(returns)
     
-    # 进行蒙特卡洛模拟
-    simulations: List[float] = []
-    for _ in range(n_simulations):
-        # 生成随机收益率序列
-        sim_returns = np.random.normal(mean_return, std_return, n_days)
-        # 计算累计收益
-        cumulative_returns = np.cumprod(1 + sim_returns) - 1
-        simulations.append(float(cumulative_returns[-1]))
+    # Vectorized Monte Carlo simulation
+    # Generate all random returns at once: (n_simulations, n_days)
+    random_returns = np.random.normal(mean_return, std_return, (n_simulations, n_days))
+    
+    # Calculate cumulative returns for each simulation
+    # (1 + random_returns) cumprod along axis 1 (n_days)
+    cumulative_returns = np.cumprod(1 + random_returns, axis=1) - 1
+    
+    # Final cumulative return for each simulation
+    simulations = cumulative_returns[:, -1]
     
     # 计算统计指标
     mean_simulation = float(np.mean(simulations))
@@ -1083,7 +1085,7 @@ def monte_carlo_simulation(returns: List[float],
     percentile_95 = float(np.percentile(simulations, 95))
     
     return {
-        'simulations': simulations,
+        'simulations': [float(s) for s in simulations],
         'mean': mean_simulation,
         'std': std_simulation,
         'percentile_5': percentile_5,

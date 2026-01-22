@@ -9,7 +9,7 @@ including model caching, batch processing, and resource management.
 
 import os
 import gc
-import pickle
+import joblib
 import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
@@ -41,7 +41,7 @@ class ModelCache:
     
     def _get_cache_file_path(self, cache_key: str) -> str:
         """Get the full path for the cache file."""
-        return os.path.join(self.cache_dir, f"{cache_key}.pkl")
+        return os.path.join(self.cache_dir, f"{cache_key}.joblib")
     
     def _is_cache_valid(self, file_path: str) -> bool:
         """Check if cache file exists and is not older than max_age_hours."""
@@ -53,14 +53,14 @@ class ModelCache:
     
     def get_cached_model(self, model_type: str, data: pd.DataFrame, params: Dict[str, Any]):
         """Try to retrieve a cached model."""
-        data_hash = hashlib.md5(str(data.values.nbytes).encode()).hexdigest()
+        data_hash = hashlib.md5(pd.util.hash_pandas_object(data).values).hexdigest()
         cache_key = self._generate_cache_key(model_type, data_hash, params)
         cache_file_path = self._get_cache_file_path(cache_key)
         
         if self._is_cache_valid(cache_file_path):
             try:
                 with open(cache_file_path, 'rb') as f:
-                    model_data = pickle.load(f)
+                    model_data = joblib.load(f)
                 print(f"从缓存加载 {model_type} 模型")
                 return model_data['model'], model_data['scaler']
             except Exception:
@@ -70,7 +70,7 @@ class ModelCache:
     def cache_model(self, model_type: str, data: pd.DataFrame, params: Dict[str, Any], 
                     model, scaler):
         """Cache a trained model."""
-        data_hash = hashlib.md5(str(data.values.nbytes).encode()).hexdigest()
+        data_hash = hashlib.md5(pd.util.hash_pandas_object(data).values).hexdigest()
         cache_key = self._generate_cache_key(model_type, data_hash, params)
         cache_file_path = self._get_cache_file_path(cache_key)
         
@@ -82,7 +82,7 @@ class ModelCache:
                 'data_hash': data_hash
             }
             with open(cache_file_path, 'wb') as f:
-                pickle.dump(model_data, f)
+                joblib.dump(model_data, f)
             print(f"{model_type} 模型已缓存")
         except Exception as e:
             print(f"缓存模型时出错: {str(e)}")

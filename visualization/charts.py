@@ -1106,8 +1106,9 @@ def create_comprehensive_dashboard(stock_data: pd.DataFrame, prediction_data: Di
     row_offset = 3
     try:
         # Calculate some technical indicators for display
-        sma_20 = stock_data['close'].rolling(20).mean()
-        rsi = np.random.rand(len(stock_data)) * 100  # Placeholder for actual RSI calculation
+        from analysis import technical as indicators
+        sma_20 = indicators.simple_moving_average(stock_data, period=20)
+        rsi = indicators.relative_strength_index(stock_data, period=14)
         
         fig.add_trace(
             go.Scatter(x=stock_data.index[-60:], y=sma_20[-60:],

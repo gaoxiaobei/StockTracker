@@ -6,12 +6,18 @@ StockTracker - 股票价格预测系统 主入口点
 
 import sys
 import argparse
+import time
 
 # Import our modules
-import data.fetcher as data_fetcher
-import models.predictors as predictor
-import analysis.technical as indicators
-import analysis.risk as risk_assessment
+from data import fetcher as data_fetcher
+from models import predictors as predictor
+from analysis import technical as indicators
+from analysis import risk as risk_assessment
+from analysis import portfolio as portfolio_analysis
+from analysis import backtest as backtest_module
+
+# 导入性能优化模块
+from performance_optimizer import optimize_tensorflow, memory_optimizer
 
 
 def show_welcome():
@@ -291,57 +297,114 @@ def launch_web_interface():
 
 def main():
     """主函数"""
+    # 优化TensorFlow性能
+    print("正在优化TensorFlow性能...")
+    optimize_tensorflow()
+    print("TensorFlow性能优化完成\n")
+
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="StockTracker - 股票价格预测系统")
     parser.add_argument("--symbol", help="股票代码")
-    parser.add_argument("--function", choices=["predict", "tech", "risk", "portfolio", "backtest", "web"], 
+    parser.add_argument("--function", choices=["predict", "tech", "risk", "portfolio", "backtest", "web"],
                        help="功能选择")
-    
+
     args = parser.parse_args()
-    
+
     # 如果提供了命令行参数，直接执行相应功能
     if args.symbol and args.function:
         if args.function == "predict":
+            start_time = time.time()
             result = predictor.predict_stock_price(args.symbol)
+            end_time = time.time()
             print(result)
+            print(f"预测耗时: {end_time - start_time:.2f}秒")
             return
         elif args.function == "tech":
-            print(f"直接分析股票 {args.symbol} 的技术指标")
+            start_time = time.time()
+            # 获取股票数据
+            stock_data = data_fetcher.get_stock_data(args.symbol, period="daily", start_date="20240101", adjust="qfq")
+            if not stock_data.empty:
+                # 计算技术指标
+                sma_20 = indicators.simple_moving_average(stock_data, period=20)
+                rsi = indicators.relative_strength_index(stock_data, period=14)
+                macd = indicators.moving_average_convergence_divergence(stock_data)
+
+                print(f"SMA20: {sma_20.iloc[-1]:.2f}")
+                print(f"RSI: {rsi.iloc[-1]:.2f}")
+                print(f"MACD: {macd['macd_line'].iloc[-1]:.2f}")
+            else:
+                print("无法获取股票数据")
+            end_time = time.time()
+            print(f"技术指标分析耗时: {end_time - start_time:.2f}秒")
             return
         elif args.function == "risk":
-            result = predictor.assess_stock_risk(args.symbol)
+            start_time = time.time()
+            result = risk_assessment.assess_stock_risk(args.symbol)
+            end_time = time.time()
             print(result)
+            print(f"风险评估耗时: {end_time - start_time:.2f}秒")
             return
         elif args.function == "web":
             launch_web_interface()
             return
+        elif args.function == "portfolio":
+            start_time = time.time()
+            # 这里可以添加投资组合分析的命令行接口
+            print("投资组合分析功能")
+            end_time = time.time()
+            print(f"投资组合分析耗时: {end_time - start_time:.2f}秒")
+            return
+        elif args.function == "backtest":
+            start_time = time.time()
+            # 这里可以添加策略回测的命令行接口
+            print("策略回测功能")
+            end_time = time.time()
+            print(f"策略回测耗时: {end_time - start_time:.2f}秒")
+            return
         # 其他功能类似处理
-    
+
     # 交互式模式
     show_welcome()
-    
+
     while True:
         show_menu()
         choice = input("请选择功能 (0-6): ").strip()
-        
+
         if choice == "0":
             print("感谢使用StockTracker，再见！")
+            # 清理内存资源
+            memory_optimizer.clear_session()
             break
         elif choice == "1":
+            start_time = time.time()
             predict_stock_price()
+            end_time = time.time()
+            print(f"股票价格预测耗时: {end_time - start_time:.2f}秒")
         elif choice == "2":
+            start_time = time.time()
             technical_analysis()
+            end_time = time.time()
+            print(f"技术指标分析耗时: {end_time - start_time:.2f}秒")
         elif choice == "3":
+            start_time = time.time()
             risk_assessment()
+            end_time = time.time()
+            print(f"风险评估耗时: {end_time - start_time:.2f}秒")
         elif choice == "4":
+            start_time = time.time()
             portfolio_analysis()
+            end_time = time.time()
+            print(f"投资组合分析耗时: {end_time - start_time:.2f}秒")
         elif choice == "5":
+            start_time = time.time()
             backtest_strategy()
+            end_time = time.time()
+            print(f"策略回测耗时: {end_time - start_time:.2f}秒")
         elif choice == "6":
             launch_web_interface()
         else:
             print("无效选择，请重新输入")
-        
+
         input("\n按回车键继续...")
 
 

@@ -2,7 +2,7 @@ import akshare as ak
 import pandas as pd
 from typing import Optional
 import hashlib
-import pickle
+import joblib
 import os
 from datetime import datetime, timedelta
 
@@ -19,7 +19,7 @@ def _get_cache_file_path(cache_key: str) -> str:
     """Get the full path for the cache file."""
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR)
-    return os.path.join(CACHE_DIR, f"{cache_key}.pkl")
+    return os.path.join(CACHE_DIR, f"{cache_key}.joblib")
 
 def _is_cache_valid(file_path: str, max_age_hours: int = 24) -> bool:
     """Check if cache file exists and is not older than max_age_hours."""
@@ -52,7 +52,7 @@ def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str]
     if _is_cache_valid(cache_file_path):
         try:
             with open(cache_file_path, 'rb') as f:
-                cached_data = pickle.load(f)
+                cached_data = joblib.load(f)
             print(f"从缓存加载股票 {symbol} 数据")
             return cached_data
         except Exception:
@@ -126,7 +126,7 @@ def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str]
         # Cache the successful result
         try:
             with open(cache_file_path, 'wb') as f:
-                pickle.dump(stock_df, f)
+                joblib.dump(stock_df, f)
             print(f"股票 {symbol} 数据已缓存")
         except Exception as e:
             print(f"缓存数据时出错: {str(e)}")
@@ -155,7 +155,7 @@ def get_stock_info(symbol: str) -> dict:
     if _is_cache_valid(cache_file_path, max_age_hours=6):  # 6 hours for info
         try:
             with open(cache_file_path, 'rb') as f:
-                cached_data = pickle.load(f)
+                cached_data = joblib.load(f)
             print(f"从缓存加载股票 {symbol} 信息")
             return cached_data
         except Exception:
@@ -193,7 +193,7 @@ def get_stock_info(symbol: str) -> dict:
         # Cache the successful result
         try:
             with open(cache_file_path, 'wb') as f:
-                pickle.dump(result, f)
+                joblib.dump(result, f)
             print(f"股票 {symbol} 信息已缓存")
         except Exception as e:
             print(f"缓存信息时出错: {str(e)}")

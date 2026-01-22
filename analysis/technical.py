@@ -8,6 +8,7 @@
 """
 
 import pandas as pd
+import numpy as np
 
 
 def simple_moving_average(data: pd.DataFrame, period: int = 20, column: str = 'close') -> pd.Series:
@@ -288,21 +289,23 @@ def on_balance_volume(data: pd.DataFrame) -> pd.Series:
         if col not in data.columns:
             raise ValueError(f"列 '{col}' 不存在于数据中")
     
-    # 计算每日价格变化
+    # Vectorized OBV calculation
     price_change = data['close'].diff()
+    direction = np.sign(price_change).fillna(0)
     
-    # 初始化OBV序列
-    obv = pd.Series(index=data.index, dtype='float64')
+    # For the first row, OBV is just the volume
+    # The direction of the first row is 0, so we need to set it correctly
+    obv = (direction * data['volume']).cumsum()
+    
+    # Adjust for the first element being 0 after diff and sign
     obv.iloc[0] = float(data['volume'].iloc[0])
+    # Recalculate cumsum starting with the first volume
+    # Actually, the standard OBV starts with 0 or the first volume. 
+    # Let's align with common implementations:
     
-    # 计算OBV
-    for i in range(1, len(data)):
-        if price_change.iloc[i] > 0:
-            obv.iloc[i] = obv.iloc[i-1] + float(data['volume'].iloc[i])
-        elif price_change.iloc[i] < 0:
-            obv.iloc[i] = obv.iloc[i-1] - float(data['volume'].iloc[i])
-        else:
-            obv.iloc[i] = obv.iloc[i-1]
+    obv = direction * data['volume']
+    obv.iloc[0] = data['volume'].iloc[0]
+    obv = obv.cumsum()
     
     return obv
 

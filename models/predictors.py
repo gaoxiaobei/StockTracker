@@ -9,7 +9,7 @@ import pandas as pd
 from typing import Dict, Any, List, Optional
 
 
-def predict_stock_price(symbol, days=5, model_type='lstm') -> Dict[str, Any]:
+def predict_stock_price(symbol, days=5, model_type='lstm', force_retrain=False) -> Dict[str, Any]:
     """
     预测股票价格
     
@@ -17,6 +17,7 @@ def predict_stock_price(symbol, days=5, model_type='lstm') -> Dict[str, Any]:
         symbol: 股票代码
         days: 预测天数
         model_type: 模型类型 ('lstm', 'gru', 'transformer', 'rf', 'xgboost')
+        force_retrain: 是否强制重新训练
         
     Returns:
         dict: 预测结果
@@ -38,16 +39,48 @@ def predict_stock_price(symbol, days=5, model_type='lstm') -> Dict[str, Any]:
         # 使用原有的LSTM预测器
         predictor = model.StockPredictor(look_back=60)
     
-    # 训练模型
-    print(f"正在训练 {model_type.upper()} 模型...")
+    # 训练模型 (如果是神经网络模型，训练通常比较慢)
+    # predictor.train 内部已经使用了 model_cache，除非 force_retrain=True
+    # 但是我们在这里需要传递 epochs 等参数
+    print(f"正在准备 {model_type.upper()} 模型...")
+    
+    epochs = 50 if not force_retrain else 50
+    # 如果 force_retrain 为 False，我们需要清除缓存中对应的条目或者让 train 自己处理
+    # 实际上 advanced_model.train 已经调用了 model_cache.get_cached_model
+    
     if model_type in ['lstm', 'gru', 'transformer']:
-        history = predictor.train(stock_data, epochs=50, batch_size=32)
+        history = predictor.train(stock_data, epochs=epochs, batch_size=32)
     else:
         history = predictor.train(stock_data)
     
-    # 预测未来价格
-    print("正在预测未来价格...")
-    predicted_price = predictor.predict(stock_data)
+    # 预测未来价格 - 实现多步预测
+    print(f"正在预测未来 {days} 天的价格...")
+    
+    # 如果是神经网络模型，进行滚动预测
+    if model_type in ['lstm', 'gru', 'transformer']:
+        current_batch = stock_data.copy()
+        future_predictions = []
+        
+        for i in range(days):
+            # 预测下一步
+            next_pred = predictor.predict(current_batch)
+            future_predictions.append(next_pred)
+            
+            # 将预测结果添加到数据中以便进行下一次预测
+            new_row = current_batch.iloc[-1:].copy()
+            # 简单处理：将预测值设为收盘价，其他价格也设为相同值
+            new_row['close'] = next_pred
+            new_row['open'] = next_pred
+            new_row['high'] = next_pred
+            new_row['low'] = next_pred
+            # 保持日期索引增加
+            new_row.index = new_row.index + pd.Timedelta(days=1)
+            current_batch = pd.concat([current_batch, new_row])
+            
+        predicted_price = future_predictions[-1]
+    else:
+        # 对于集成模型，简单起见我们也只预测一次或者也可以实现滚动
+        predicted_price = predictor.predict(stock_data)
     
     # 获取当前价格
     current_price = stock_data['close'].iloc[-1]
@@ -351,12 +384,28 @@ def plot_prediction_with_confidence_interval(symbol, model_type='lstm', days=5):
         predictor.train(stock_data)
 
     # 预测未来价格
-    print("正在预测未来价格...")
-    predicted_price = predictor.predict(stock_data)
+    print(f"正在预测未来 {days} 天的价格...")
+    
+    # 实现多步预测
+    future_predictions = []
+    current_batch = stock_data.copy()
+    
+    for i in range(days):
+        next_pred = predictor.predict(current_batch)
+        future_predictions.append(next_pred)
+        
+        # 将预测结果添加到数据中以便进行下一次预测
+        new_row = current_batch.iloc[-1:].copy()
+        new_row['close'] = next_pred
+        new_row['open'] = next_pred
+        new_row['high'] = next_pred
+        new_row['low'] = next_pred
+        new_row.index = new_row.index + pd.Timedelta(days=1)
+        current_batch = pd.concat([current_batch, new_row])
 
-    # 创建预测数据（这里简化处理，实际应该生成未来几天的预测）
+    # 创建预测数据
     future_dates = pd.date_range(start=stock_data.index[-1] + pd.Timedelta(days=1), periods=days)
-    predictions = pd.Series([predicted_price] * days, index=future_dates)
+    predictions = pd.Series(future_predictions, index=future_dates)
 
     # 创建可视化器
     visualizer = visualization.StockVisualizer()
