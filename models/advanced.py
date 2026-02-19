@@ -132,6 +132,8 @@ class TimeSeriesTransformer(Model):
         # Add positional encoding
         # Using tf.slice instead of direct indexing to avoid Pylance errors
         pos_encoding_slice = tf.slice(self.pos_encoding, [0, 0, 0], [-1, seq_len, -1])
+        # Cast to match x's dtype (crucial for mixed precision)
+        pos_encoding_slice = tf.cast(pos_encoding_slice, x.dtype)
         x = x + pos_encoding_slice
         
         x = self.dropout(x, training=training)
@@ -146,7 +148,11 @@ class TimeSeriesTransformer(Model):
         # Output layer
         x = self.output_layer(x)
         
-        return x
+        # Ensure output is float32 for loss stability
+        return tf.cast(x, tf.float32)
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], 1)
 
 
 class AdvancedStockPredictor:

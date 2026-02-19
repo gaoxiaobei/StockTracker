@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-股票预测演示脚本
-使用akshare获取股票数据，使用TensorFlow构建LSTM模型进行预测
+更新的股票预测演示脚本
+使用优化后的StockTracker系统进行演示
 """
 
 import models.predictors as predictor
@@ -15,6 +15,7 @@ import visualization.charts as visualization
 import time
 import matplotlib.pyplot as plt
 import pandas as pd
+from performance_optimizer import optimize_tensorflow, model_cache, data_loader, memory_optimizer
 
 
 def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
@@ -22,7 +23,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
     演示技术指标计算功能
     """
     print("\n4. 技术指标分析...")
-    
+
     # 获取股票数据
     stock_data = data_fetcher.get_stock_data(
         stock_symbol,
@@ -30,15 +31,15 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
         start_date="20240101",
         adjust="qfq"
     )
-    
+
     if stock_data.empty:
         print("   无法获取股票数据，跳过技术指标演示")
         return
-    
+
     # 只保留最近60天的数据用于演示
     stock_data = stock_data.tail(60)
     print(f"   使用最近 {len(stock_data)} 天的数据进行技术指标分析")
-    
+
     try:
         # 计算并显示简单移动平均线
         print("\n   (1) 移动平均线 (MA):")
@@ -46,14 +47,14 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
         sma_50 = indicators.simple_moving_average(stock_data, period=50)
         print(f"       20日简单移动平均线: {sma_20.iloc[-1]:.2f}")
         print(f"       50日简单移动平均线: {sma_50.iloc[-1]:.2f}")
-        
+
         # 计算并显示指数移动平均线
         print("\n   (2) 指数移动平均线 (EMA):")
         ema_20 = indicators.exponential_moving_average(stock_data, period=20)
         ema_50 = indicators.exponential_moving_average(stock_data, period=50)
         print(f"       20日指数移动平均线: {ema_20.iloc[-1]:.2f}")
         print(f"       50日指数移动平均线: {ema_50.iloc[-1]:.2f}")
-        
+
         # 计算并显示相对强弱指数
         print("\n   (3) 相对强弱指数 (RSI):")
         rsi_14 = indicators.relative_strength_index(stock_data, period=14)
@@ -64,7 +65,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
             print("       RSI < 30: 股票可能超卖")
         else:
             print("       RSI在30-70之间: 正常波动范围")
-        
+
         # 计算并显示MACD
         print("\n   (4) 异同移动平均线 (MACD):")
         macd_data = indicators.moving_average_convergence_divergence(stock_data)
@@ -78,7 +79,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
             print("       柱状图为正: 多头市场")
         else:
             print("       柱状图为负: 空头市场")
-        
+
         # 计算并显示布林带
         print("\n   (5) 布林带 (Bollinger Bands):")
         bb_data = indicators.bollinger_bands(stock_data, period=20)
@@ -96,7 +97,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
             print("       价格跌破下轨: 可能超卖")
         else:
             print("       价格在布林带通道内: 正常波动")
-        
+
         # 计算并显示随机指标
         print("\n   (6) 随机指标 (Stochastic Oscillator):")
         stoch_data = indicators.stochastic_oscillator(stock_data, k_period=14, d_period=3)
@@ -110,7 +111,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
             print("       随机指标在超卖区: 可能反弹")
         else:
             print("       随机指标在正常区间: 趋势持续")
-        
+
         # 计算并显示成交量指标
         print("\n   (7) 成交量指标:")
         obv = indicators.on_balance_volume(stock_data)
@@ -123,7 +124,7 @@ def demonstrate_technical_indicators(stock_symbol: str, stock_name: str):
             print("       CMF为正: 资金流入")
         else:
             print("       CMF为负: 资金流出")
-            
+
     except Exception as e:
         print(f"   技术指标计算出错: {e}")
 
@@ -133,7 +134,7 @@ def demonstrate_risk_assessment(stock_symbol: str, stock_name: str):
     演示风险评估功能
     """
     print("\n7. 风险评估分析...")
-    
+
     try:
         # 执行综合风险评估
         risk_result = risk_assessment.comprehensive_risk_assessment(
@@ -141,16 +142,16 @@ def demonstrate_risk_assessment(stock_symbol: str, stock_name: str):
             market_symbol="sh000001",  # 上证指数
             start_date="20200101"
         )
-        
+
         if "error" in risk_result:
             print(f"   风险评估失败: {risk_result['error']}")
             return
-        
+
         # 显示风险指标
         print(f"   股票代码: {risk_result['stock_symbol']}")
         print(f"   市场指数: {risk_result['market_symbol']}")
         print(f"   数据点数: {risk_result['data_points']}")
-        
+
         print("\n   (1) 风险指标:")
         print(f"       波动率: {risk_result['volatility']:.4f}")
         print(f"       历史VaR (95%置信度): {risk_result['var_historical']:.4f}")
@@ -160,14 +161,14 @@ def demonstrate_risk_assessment(stock_symbol: str, stock_name: str):
         print(f"       贝塔系数: {risk_result['beta']:.4f}")
         print(f"       Alpha值: {risk_result['alpha']:.4f}")
         print(f"       与市场相关性: {risk_result['correlation_with_market']:.4f}")
-        
+
         # 显示风险评级
         risk_level = risk_result['risk_level']
         print("\n   (2) 风险评级:")
         print(f"       风险等级: {risk_level['risk_level']}")
         print(f"       风险解释: {risk_level['explanation']}")
         print(f"       投资建议: {risk_level['investment_advice']}")
-        
+
         # 显示蒙特卡洛模拟结果
         mc_results = risk_result['monte_carlo_simulation']
         print("\n   (3) 蒙特卡洛模拟:")
@@ -177,19 +178,24 @@ def demonstrate_risk_assessment(stock_symbol: str, stock_name: str):
         print(f"       最小损失: {mc_results['min_loss']:.4f}")
         print(f"       最大损失: {mc_results['max_loss']:.4f}")
         print(f"       损失标准差: {mc_results['std_loss']:.4f}")
-        
+
     except Exception as e:
         print(f"   风险评估出错: {e}")
 
 
 def main():
+    # 优化TensorFlow性能
+    print("正在优化TensorFlow性能...")
+    optimize_tensorflow()
+    print("TensorFlow性能优化完成\n")
+    
     # 指定要预测的股票代码
     stock_symbol = "002607"  # 中公教育
-    
+
     print("=" * 60)
     print(f"股票价格预测演示 - 股票代码: {stock_symbol}")
     print("=" * 60)
-    
+
     # 获取股票基本信息
     print("\n1. 获取股票基本信息...")
     stock_info = data_fetcher.get_stock_info(stock_symbol)
@@ -200,18 +206,18 @@ def main():
         print(f"   流通市值: {stock_info.get('流通市值', '未知')}")
     else:
         print("   无法获取股票基本信息")
-    
+
     # 预测股票价格 - 模型比较
     print("\n2. 模型性能比较...")
     model_types = ['lstm', 'gru', 'transformer', 'rf', 'xgboost']
     results = {}
-    
+
     for model_type in model_types:
         print(f"   训练 {model_type.upper()} 模型...")
         start_time = time.time()
         result = predictor.predict_stock_price(stock_symbol, model_type=model_type)
         end_time = time.time()
-        
+
         if "error" in result:
             print(f"   {model_type.upper()} 模型预测失败: {result['error']}")
             results[model_type] = None
@@ -220,7 +226,7 @@ def main():
             print(f"   预测价格: {result['predicted_price']:.2f}元")
             print(f"   价格变化: {result['price_change']:.2f}元 ({result['price_change_percent']:.2f}%)")
             results[model_type] = result
-    
+
     # 显示模型比较结果
     print("\n   模型预测结果比较:")
     print("   {:<12} {:<10} {:<10} {:<10}".format("模型类型", "预测价格", "价格变化", "变化百分比"))
@@ -235,7 +241,7 @@ def main():
             ))
         else:
             print(f"   {model_type.upper():<12} 失败")
-    
+
     # 根据预测结果给出建议
     print("\n3. 投资建议:")
     # 使用LSTM模型的结果作为投资建议的依据
@@ -255,11 +261,11 @@ def main():
             print("   建议: 卖出 - 预测价格大幅下跌超过5%")
     else:
         print("   无法提供投资建议 - LSTM模型预测失败")
-     
+
     # 技术指标演示
     stock_name = stock_info.get('股票简称', '未知') if stock_info else '未知'
     demonstrate_technical_indicators(stock_symbol, stock_name)
-    
+
     # 超参数调优演示
     print("\n5. 超参数调优演示...")
     try:
@@ -270,12 +276,12 @@ def main():
             'max_depth': [5, 10],
             'min_samples_split': [2, 5]
         }
-        
+
         tuner = advanced_model.HyperparameterTuner('rf', param_grid)
         stock_data = data_fetcher.get_stock_data(
             stock_symbol, period="daily", start_date="20200101", adjust="qfq"
         )
-        
+
         if not stock_data.empty:
             # 使用较少的折叠数和参数组合以加快演示速度
             tuning_result = tuner.grid_search(stock_data, cv=2)
@@ -285,7 +291,7 @@ def main():
             print("   无法获取股票数据，跳过超参数调优演示")
     except Exception as e:
         print(f"   超参数调优演示出错: {e}")
-    
+
     # 模型持久化演示
     print("\n6. 模型持久化演示...")
     try:
@@ -294,24 +300,24 @@ def main():
         stock_data = data_fetcher.get_stock_data(
             stock_symbol, period="daily", start_date="20200101", adjust="qfq"
         )
-        
+
         if not stock_data.empty:
             # 创建并训练模型
             model_predictor = advanced_model.AdvancedStockPredictor(
                 look_back=30, model_type='rf'
             )
             model_predictor.train(stock_data)
-            
+
             # 保存模型
             model_name = model_predictor.save_model(f"rf_demo_{stock_symbol}")
             print(f"   模型已保存到: {model_name}")
-            
+
             # 加载模型
             print("   加载模型...")
             loaded_predictor = advanced_model.AdvancedStockPredictor()
             loaded_predictor.load_model(f"rf_demo_{stock_symbol}")
             print("   模型加载成功")
-            
+
             # 验证模型
             print("   验证模型...")
             original_pred = model_predictor.predict(stock_data)
@@ -323,21 +329,21 @@ def main():
             print("   无法获取股票数据，跳过模型持久化演示")
     except Exception as e:
         print(f"   模型持久化演示出错: {e}")
-    
+
     # 风险评估演示
     print("\n7. 风险评估演示...")
     try:
         demonstrate_risk_assessment(stock_symbol, stock_name)
     except Exception as e:
         print(f"   风险评估演示出错: {e}")
-    
+
     # 模型验证和评估演示
     print("\n8. 模型验证和评估演示...")
     try:
         stock_data = data_fetcher.get_stock_data(
             stock_symbol, period="daily", start_date="20200101", adjust="qfq"
         )
-        
+
         if not stock_data.empty:
             # 使用不同的模型进行评估
             model_types = ['lstm', 'rf']
@@ -347,12 +353,12 @@ def main():
                     predictor_eval = advanced_model.AdvancedStockPredictor(
                         look_back=30, model_type=model_type
                     )
-                    
+
                     if model_type in ['lstm', 'gru', 'transformer']:
                         predictor_eval.train(stock_data, epochs=10)  # 减少epoch以加快演示
                     else:
                         predictor_eval.train(stock_data)
-                    
+
                     # 评估模型
                     eval_results = predictor_eval.evaluate_model(
                         stock_data, metrics=['mae', 'rmse', 'mape']
@@ -366,42 +372,42 @@ def main():
             print("   无法获取股票数据，跳过模型验证和评估演示")
     except Exception as e:
         print(f"   模型验证和评估演示出错: {e}")
-    
+
     # 投资组合分析演示
     print("\n9. 投资组合分析演示...")
     try:
         demonstrate_portfolio_analysis()
     except Exception as e:
         print(f"   投资组合分析演示出错: {e}")
-    
+
     # 投资组合优化演示
     print("\n10. 投资组合优化演示...")
     try:
         demonstrate_portfolio_optimization()
     except Exception as e:
         print(f"   投资组合优化演示出错: {e}")
-    
+
     # 蒙特卡洛模拟演示
     print("\n11. 蒙特卡洛模拟演示...")
     try:
         demonstrate_monte_carlo_simulation()
     except Exception as e:
         print(f"   蒙特卡洛模拟演示出错: {e}")
-    
+
     # 回测演示
     print("\n12. 回测演示...")
     try:
         demonstrate_backtest()
     except Exception as e:
         print(f"   回测演示出错: {e}")
-    
+
     # 参数优化演示
     print("\n13. 参数优化演示...")
     try:
         demonstrate_parameter_optimization()
     except Exception as e:
         print(f"   参数优化演示出错: {e}")
-    
+
     # 新增的可视化功能演示
     demonstrate_interactive_charts(stock_symbol, stock_name)
     demonstrate_candlestick_chart(stock_symbol, stock_name)
@@ -412,19 +418,17 @@ def main():
     demonstrate_prediction_with_confidence_interval(stock_symbol, stock_name)
     demonstrate_model_comparison_chart(stock_symbol, stock_name)
     demonstrate_risk_metrics_chart(stock_symbol, stock_name)
-    
+
     # 新增的高级可视化功能演示
     demonstrate_comprehensive_dashboard(stock_symbol, stock_name)
     demonstrate_multi_stock_comparison()
     demonstrate_portfolio_analysis_visualization()
     demonstrate_backtest_results_visualization()
     demonstrate_realtime_visualization(stock_symbol, stock_name)
-    
+
     print("\n" + "=" * 60)
     print("演示完成")
     print("=" * 60)
-
-
 
 
 def demonstrate_portfolio_analysis():
@@ -432,29 +436,29 @@ def demonstrate_portfolio_analysis():
     演示投资组合分析功能
     """
     print("\n9. 投资组合分析...")
-    
+
     # 定义股票组合
     stocks_dict = {
         "002607": {"symbol": "002607", "name": "中公教育"},
         "000001": {"symbol": "000001", "name": "平安银行"},
         "600036": {"symbol": "600036", "name": "招商银行"}
     }
-    
+
     try:
         # 分析投资组合
         print("   分析投资组合...")
         portfolio_result = predictor.analyze_portfolio(stocks_dict)
-        
+
         if "error" in portfolio_result:
             print(f"   投资组合分析失败: {portfolio_result['error']}")
             return
-        
+
         if portfolio_result["success"]:
             metrics = portfolio_result["metrics"]
             print(f"   投资组合预期收益: {metrics['expected_return']:.4f}")
             print(f"   投资组合风险(波动率): {metrics['volatility']:.4f}")
             print(f"   夏普比率: {metrics['sharpe_ratio']:.4f}")
-            
+
             # 风险贡献分析
             risk_contribution = portfolio_result["risk_contribution"]
             if "error" not in risk_contribution:
@@ -463,7 +467,7 @@ def demonstrate_portfolio_analysis():
                     print(f"     {symbol}: {risk_contribution['percentage_contributions'][i]:.2f}%")
         else:
             print("   投资组合分析失败")
-            
+
     except Exception as e:
         print(f"   投资组合分析出错: {e}")
 
@@ -473,19 +477,19 @@ def demonstrate_portfolio_optimization():
     演示投资组合优化功能
     """
     print("\n10. 投资组合优化...")
-    
+
     # 定义股票组合
     stocks_dict = {
         "002607": {"symbol": "002607", "name": "中公教育"},
         "000001": {"symbol": "000001", "name": "平安银行"},
         "600036": {"symbol": "600036", "name": "招商银行"}
     }
-    
+
     try:
         # 均值-方差优化
         print("   均值-方差优化...")
         mv_result = predictor.optimize_portfolio(stocks_dict, method='mean_variance')
-        
+
         if "error" in mv_result:
             print(f"   均值-方差优化失败: {mv_result['error']}")
         elif mv_result["success"]:
@@ -494,11 +498,11 @@ def demonstrate_portfolio_optimization():
             print(f"   优化后夏普比率: {mv_result['sharpe_ratio']:.4f}")
         else:
             print("   均值-方差优化失败")
-            
+
         # 最小方差组合优化
         print("\n   最小方差组合优化...")
         min_var_result = predictor.optimize_portfolio(stocks_dict, method='minimum_variance')
-        
+
         if "error" in min_var_result:
             print(f"   最小方差组合优化失败: {min_var_result['error']}")
         elif min_var_result["success"]:
@@ -507,7 +511,7 @@ def demonstrate_portfolio_optimization():
             print(f"   优化后夏普比率: {min_var_result['sharpe_ratio']:.4f}")
         else:
             print("   最小方差组合优化失败")
-            
+
     except Exception as e:
         print(f"   投资组合优化出错: {e}")
 
@@ -517,19 +521,19 @@ def demonstrate_monte_carlo_simulation():
     演示蒙特卡洛模拟功能
     """
     print("\n11. 蒙特卡洛模拟...")
-    
+
     # 定义股票组合
     stocks_dict = {
         "002607": {"symbol": "002607", "name": "中公教育"},
         "000001": {"symbol": "000001", "name": "平安银行"},
         "600036": {"symbol": "600036", "name": "招商银行"}
     }
-    
+
     try:
         # 蒙特卡洛模拟
         print("   执行蒙特卡洛模拟...")
         mc_result = predictor.monte_carlo_portfolio_simulation(stocks_dict, n_simulations=1000)
-        
+
         if "error" in mc_result:
             print(f"   蒙特卡洛模拟失败: {mc_result['error']}")
         else:
@@ -538,7 +542,7 @@ def demonstrate_monte_carlo_simulation():
             print(f"   对应预期收益: {mc_result['return_for_max_sharpe']:.4f}")
             print(f"   对应风险(波动率): {mc_result['volatility_for_max_sharpe']:.4f}")
             print(f"   最小波动率: {mc_result['min_volatility']:.4f}")
-            
+
     except Exception as e:
         print(f"   蒙特卡洛模拟出错: {e}")
 
@@ -548,10 +552,10 @@ def demonstrate_backtest():
     演示回测功能
     """
     print("\n12. 策略回测...")
-    
+
     symbol = "002607"
     stock_name = "中公教育"
-    
+
     try:
         # 运行移动平均线交叉策略回测
         print(f"   运行 {symbol} ({stock_name}) 的移动平均线交叉策略回测...")
@@ -561,7 +565,7 @@ def demonstrate_backtest():
             short_window=10,
             long_window=30
         )
-        
+
         if "error" in result:
             print(f"   回测失败: {result['error']}")
         elif result["success"]:
@@ -574,7 +578,7 @@ def demonstrate_backtest():
             print(f"   总交易次数: {len(result['result']['engine'].trades)}")
         else:
             print("   回测失败")
-            
+
     except Exception as e:
         print(f"   回测出错: {e}")
 
@@ -584,10 +588,10 @@ def demonstrate_parameter_optimization():
     演示参数优化功能
     """
     print("\n13. 参数优化...")
-    
+
     symbol = "002607"
     stock_name = "中公教育"
-    
+
     try:
         # 网格搜索优化参数
         print(f"   使用网格搜索优化 {symbol} ({stock_name}) 的策略参数...")
@@ -596,7 +600,7 @@ def demonstrate_parameter_optimization():
             strategy_type="ma_crossover",
             optimizer_type="grid_search"
         )
-        
+
         if "error" in result:
             print(f"   参数优化失败: {result['error']}")
         elif result["success"]:
@@ -606,7 +610,7 @@ def demonstrate_parameter_optimization():
             print(f"   最佳夏普比率: {best_sharpe:.4f}")
         else:
             print("   参数优化失败")
-            
+
     except Exception as e:
        print(f"   参数优化出错: {e}")
 
@@ -829,3 +833,7 @@ def demonstrate_realtime_visualization(stock_symbol: str, stock_name: str):
         print("   注意: 实时更新需要连接到数据源，此处仅演示初始化过程")
     except Exception as e:
         print(f"   实时数据可视化演示出错: {e}")
+
+
+if __name__ == "__main__":
+    main()

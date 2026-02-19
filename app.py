@@ -117,7 +117,7 @@ st.markdown("""
         margin-right: 0.5rem;
     }
 </style>
-""")
+""", unsafe_allow_html=True)
 
 # Session state initialization
 if 'stock_data' not in st.session_state:
@@ -138,7 +138,7 @@ if 'user_preferences' not in st.session_state:
 def main():
     """Main application function"""
     # App header
-    st.title("📈 StockTracker 股票价格预测系统")
+    st.markdown("<h1 class='main-header'>📈 StockTracker 股票价格预测系统</h1>", unsafe_allow_html=True)
     
     # Sidebar navigation
     with st.sidebar:
@@ -189,10 +189,10 @@ def main():
 
 def show_home_page():
     """Display home page"""
-    st.header("欢迎使用StockTracker")
+    st.markdown("<h2 class='section-header'>欢迎使用StockTracker</h2>", unsafe_allow_html=True)
     
     # Add data upload section
-    st.subheader("上传数据")
+    st.markdown("<h3 class='subsection-header'>上传数据</h3>", unsafe_allow_html=True)
     uploaded_file = st.file_uploader("上传股票数据文件 (CSV格式)", type="csv")
     
     if uploaded_file is not None:
@@ -271,7 +271,7 @@ def show_home_page():
 
 def show_stock_analysis_page():
     """Display stock analysis page"""
-    st.header("🔍 股票分析")
+    st.markdown("<h2 class='section-header'>🔍 股票分析</h2>", unsafe_allow_html=True)
     
     # Stock input section
     col1, col2, col3 = st.columns([2, 1, 1])
@@ -299,13 +299,14 @@ def show_stock_analysis_page():
                 
                 if not stock_data.empty:
                     st.session_state.stock_data = stock_data
+                    st.session_state.current_symbol = symbol
                     st.success(f"成功加载 {symbol} 的股票数据，共 {len(stock_data)} 条记录")
                     st.info("💡 提示：您可以在页面下方查看股票数据详情、图表和进行技术指标分析。")
                     
                     # Get stock info
                     stock_info = data_fetcher.get_stock_info(symbol)
                     if stock_info:
-                        st.subheader("股票基本信息")
+                        st.markdown("<h3 class='subsection-header'>股票基本信息</h3>", unsafe_allow_html=True)
                         info_cols = st.columns(4)
                         info_cols[0].metric("股票名称", stock_info.get("股票简称", "未知"))
                         info_cols[1].metric("行业", stock_info.get("行业", "未知"))
@@ -320,7 +321,7 @@ def show_stock_analysis_page():
     
     # Display stock data if available
     if st.session_state.stock_data is not None and not st.session_state.stock_data.empty:
-        st.subheader("股票价格数据")
+        st.markdown("<h3 class='subsection-header'>股票价格数据</h3>", unsafe_allow_html=True)
         
         # Display basic info
         latest_data = st.session_state.stock_data.iloc[-1]
@@ -332,13 +333,13 @@ def show_stock_analysis_page():
         metrics_cols[4].metric("成交量", f"{latest_data['volume']:,}")
         
         # Display price chart
-        st.subheader("价格走势")
+        st.markdown("<h3 class='subsection-header'>价格走势</h3>", unsafe_allow_html=True)
         fig = px.line(st.session_state.stock_data.tail(120), y='close', title=f"{symbol} 股票价格走势")
         fig.update_layout(xaxis_title="日期", yaxis_title="价格 (¥)")
         st.plotly_chart(fig, use_container_width=True)
         
         # Display data table
-        st.subheader("历史数据")
+        st.markdown("<h3 class='subsection-header'>历史数据</h3>", unsafe_allow_html=True)
         st.dataframe(st.session_state.stock_data.tail(20))
         
         # Export data
@@ -352,14 +353,14 @@ def show_stock_analysis_page():
 
 def show_technical_indicators_page():
     """Display technical indicators page"""
-    st.header("📊 技术指标分析")
+    st.markdown("<h2 class='section-header'>📊 技术指标分析</h2>", unsafe_allow_html=True)
     
     if st.session_state.stock_data is None or st.session_state.stock_data.empty:
         st.warning("请先在'🔍 股票分析'页面加载股票数据")
         return
     
     # Select indicators to calculate
-    st.subheader("选择技术指标")
+    st.markdown("<h3 class='subsection-header'>选择技术指标</h3>", unsafe_allow_html=True)
     indicators_selected = st.multiselect(
         "选择要计算的技术指标",
         ["移动平均线", "指数移动平均线", "相对强弱指数(RSI)", "MACD", "布林带", "随机指标", "能量潮(OBV)"],
@@ -418,7 +419,7 @@ def show_technical_indicators_page():
                 
                 # Display results
                 if indicator_results:
-                    st.subheader("技术指标图表")
+                    st.markdown("<h3 class='subsection-header'>技术指标图表</h3>", unsafe_allow_html=True)
                     
                     # Plot price with selected indicators
                     with st.spinner("生成技术指标图表..."):
@@ -455,7 +456,7 @@ def show_technical_indicators_page():
                         st.plotly_chart(fig, use_container_width=True)
                     
                     # Display indicator values
-                    st.subheader("最新指标值")
+                    st.markdown("<h3 class='subsection-header'>最新指标值</h3>", unsafe_allow_html=True)
                     indicator_cols = st.columns(len(indicator_results))
                     for i, (name, data) in enumerate(indicator_results.items()):
                         if len(data) > 0:
@@ -467,14 +468,14 @@ def show_technical_indicators_page():
 
 def show_prediction_page():
     """Display prediction page"""
-    st.header("🔮 股票价格预测")
+    st.markdown("<h2 class='section-header'>🔮 股票价格预测</h2>", unsafe_allow_html=True)
     
     if st.session_state.stock_data is None or st.session_state.stock_data.empty:
         st.warning("请先在'🔍 股票分析'页面加载股票数据")
         return
     
     # Model selection
-    st.subheader("模型设置")
+    st.markdown("<h3 class='subsection-header'>模型设置</h3>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
@@ -498,7 +499,7 @@ def show_prediction_page():
             try:
                 # Get prediction
                 result = predictor.predict_stock_price(
-                    st.session_state.stock_data.index.name or "symbol",
+                    st.session_state.current_symbol,
                     days=days,
                     model_type=model_type
                 )
@@ -509,7 +510,7 @@ def show_prediction_page():
                     st.info("💡 提示：预测结果仅供参考，不构成投资建议。投资有风险，入市需谨慎。")
                     
                     # Display results
-                    st.subheader("预测结果")
+                    st.markdown("<h3 class='subsection-header'>预测结果</h3>", unsafe_allow_html=True)
                     pred_cols = st.columns(4)
                     pred_cols[0].metric("当前价格", f"¥{result['current_price']:.2f}")
                     pred_cols[1].metric("预测价格", f"¥{result['predicted_price']:.2f}")
@@ -536,7 +537,7 @@ def show_prediction_page():
                         )
                     
                     # Investment suggestion
-                    st.subheader("投资建议")
+                    st.markdown("<h3 class='subsection-header'>投资建议</h3>", unsafe_allow_html=True)
                     if result['price_change_percent'] > 5:
                         st.success("📈 强烈买入 - 预测价格上涨超过5%")
                     elif result['price_change_percent'] > 2:
@@ -551,7 +552,7 @@ def show_prediction_page():
                         st.error("🚨 卖出 - 预测价格大幅下跌超过5%")
                     
                     # Export prediction results
-                    st.subheader("导出结果")
+                    st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
                     pred_json = json.dumps(result, ensure_ascii=False, indent=2)
                     st.download_button(
                         label="下载预测结果(JSON)",
@@ -612,11 +613,11 @@ def show_prediction_page():
                             st.error(f"生成报告时出错: {str(e)}")
                     
                     # Visualization
-                    st.subheader("预测可视化")
+                    st.markdown("<h3 class='subsection-header'>预测可视化</h3>", unsafe_allow_html=True)
                     try:
                         with st.spinner("正在生成预测图表..."):
                             predictor.plot_prediction_with_confidence_interval(
-                                st.session_state.stock_data.index.name or "symbol",
+                                st.session_state.current_symbol,
                                 model_type=model_type,
                                 days=days
                             )
@@ -634,14 +635,14 @@ def show_prediction_page():
 
 def show_risk_assessment_page():
     """Display risk assessment page"""
-    st.header("⚠️ 风险评估")
+    st.markdown("<h2 class='section-header'>⚠️ 风险评估</h2>", unsafe_allow_html=True)
     
     if st.session_state.stock_data is None or st.session_state.stock_data.empty:
         st.warning("请先在'🔍 股票分析'页面加载股票数据")
         return
     
     # Risk assessment parameters
-    st.subheader("评估参数")
+    st.markdown("<h3 class='subsection-header'>评估参数</h3>", unsafe_allow_html=True)
     market_symbol = st.text_input("市场指数代码", value="sh000001", help="用于计算贝塔系数等指标")
     
     if st.button("开始风险评估"):
@@ -649,7 +650,7 @@ def show_risk_assessment_page():
             try:
                 # Perform risk assessment
                 result = predictor.assess_stock_risk(
-                    st.session_state.stock_data.index.name or "symbol",
+                    st.session_state.current_symbol,
                     market_symbol=market_symbol
                 )
                 
@@ -659,7 +660,7 @@ def show_risk_assessment_page():
                     st.info("💡 提示：风险评估结果基于历史数据计算，仅供参考。投资有风险，决策需谨慎。")
                     
                     # Display risk metrics
-                    st.subheader("风险指标")
+                    st.markdown("<h3 class='subsection-header'>风险指标</h3>", unsafe_allow_html=True)
                     risk_cols = st.columns(4)
                     risk_cols[0].metric("波动率", f"{result['volatility']:.4f}")
                     risk_cols[1].metric("历史VaR(95%)", f"{result['var_historical']:.4f}")
@@ -667,7 +668,7 @@ def show_risk_assessment_page():
                     risk_cols[3].metric("夏普比率", f"{result['sharpe_ratio']:.4f}")
                     
                     # Additional metrics
-                    st.subheader("更多指标")
+                    st.markdown("<h3 class='subsection-header'>更多指标</h3>", unsafe_allow_html=True)
                     more_cols = st.columns(4)
                     more_cols[0].metric("贝塔系数", f"{result['beta']:.4f}")
                     more_cols[1].metric("Alpha值", f"{result['alpha']:.4f}")
@@ -675,7 +676,7 @@ def show_risk_assessment_page():
                     more_cols[3].metric("数据点数", result['data_points'])
                     
                     # Risk level assessment
-                    st.subheader("风险评级")
+                    st.markdown("<h3 class='subsection-header'>风险评级</h3>", unsafe_allow_html=True)
                     risk_level = result['risk_level']
                     if risk_level['risk_level'] == "低风险":
                         st.success(f"🟢 {risk_level['risk_level']}: {risk_level['explanation']}")
@@ -688,7 +689,7 @@ def show_risk_assessment_page():
                         st.info(f"投资建议: {risk_level['investment_advice']}")
                     
                     # Monte Carlo simulation results
-                    st.subheader("蒙特卡洛模拟")
+                    st.markdown("<h3 class='subsection-header'>蒙特卡洛模拟</h3>", unsafe_allow_html=True)
                     mc_results = result['monte_carlo_simulation']
                     mc_cols = st.columns(5)
                     mc_cols[0].metric("预期损失", f"{mc_results['expected_loss']:.4f}")
@@ -698,7 +699,7 @@ def show_risk_assessment_page():
                     mc_cols[4].metric("最大损失", f"{mc_results['max_loss']:.4f}")
                     
                     # Export risk assessment results
-                    st.subheader("导出结果")
+                    st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
                     risk_json = json.dumps(result, ensure_ascii=False, indent=2)
                     st.download_button(
                         label="下载风险评估结果(JSON)",
@@ -768,10 +769,10 @@ def show_risk_assessment_page():
 
 def show_portfolio_page():
     """Display portfolio analysis page"""
-    st.header("💼 投资组合分析")
+    st.markdown("<h2 class='section-header'>💼 投资组合分析</h2>", unsafe_allow_html=True)
     
     # Portfolio setup
-    st.subheader("投资组合设置")
+    st.markdown("<h3 class='subsection-header'>投资组合设置</h3>", unsafe_allow_html=True)
     
     # Initialize portfolio in session state if not exists
     if 'portfolio_stocks' not in st.session_state:
@@ -803,7 +804,7 @@ def show_portfolio_page():
             st.success("投资组合更新已撤销")
     
     # Portfolio analysis actions
-    st.subheader("分析选项")
+    st.markdown("<h3 class='subsection-header'>分析选项</h3>", unsafe_allow_html=True)
     analysis_action = st.selectbox(
         "选择分析类型",
         ["投资组合分析", "投资组合优化", "蒙特卡洛模拟"]
@@ -830,14 +831,14 @@ def show_portfolio_page():
                         
                         # Display results
                         metrics = result["metrics"]
-                        st.subheader("投资组合指标")
+                        st.markdown("<h3 class='subsection-header'>投资组合指标</h3>", unsafe_allow_html=True)
                         metric_cols = st.columns(3)
                         metric_cols[0].metric("预期收益", f"{metrics['expected_return']:.4f}")
                         metric_cols[1].metric("风险(波动率)", f"{metrics['volatility']:.4f}")
                         metric_cols[2].metric("夏普比率", f"{metrics['sharpe_ratio']:.4f}")
                         
                         # Risk contribution
-                        st.subheader("风险贡献分析")
+                        st.markdown("<h3 class='subsection-header'>风险贡献分析</h3>", unsafe_allow_html=True)
                         risk_contrib = result["risk_contribution"]
                         if "error" not in risk_contrib:
                             contrib_data = pd.DataFrame({
@@ -847,7 +848,7 @@ def show_portfolio_page():
                             st.table(contrib_data)
                             
                             # Export portfolio analysis results
-                            st.subheader("导出结果")
+                            st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
                             portfolio_json = json.dumps(result, ensure_ascii=False, indent=2)
                             st.download_button(
                                 label="下载投资组合分析结果(JSON)",
@@ -927,14 +928,14 @@ def show_portfolio_page():
                         st.info("💡 提示：投资组合优化结果基于历史数据计算，仅供参考。投资有风险，决策需谨慎。")
                         
                         # Display results
-                        st.subheader("优化结果")
+                        st.markdown("<h3 class='subsection-header'>优化结果</h3>", unsafe_allow_html=True)
                         opt_cols = st.columns(3)
                         opt_cols[0].metric("优化后预期收益", f"{result['expected_return']:.4f}")
                         opt_cols[1].metric("优化后风险", f"{result['volatility']:.4f}")
                         opt_cols[2].metric("优化后夏普比率", f"{result['sharpe_ratio']:.4f}")
                         
                         # Optimized weights
-                        st.subheader("优化后权重")
+                        st.markdown("<h3 class='subsection-header'>优化后权重</h3>", unsafe_allow_html=True)
                         weights_data = pd.DataFrame({
                             "股票": result["symbols"],
                             "优化权重(%)": [f"{w*100:.2f}%" for w in result["weights"]]
@@ -968,14 +969,14 @@ def show_portfolio_page():
                         st.success("蒙特卡洛模拟完成！")
                         
                         # Display results
-                        st.subheader("模拟结果")
+                        st.markdown("<h3 class='subsection-header'>模拟结果</h3>", unsafe_allow_html=True)
                         sim_cols = st.columns(3)
                         sim_cols[0].metric("最大夏普比率", f"{result['max_sharpe_ratio']:.4f}")
                         sim_cols[1].metric("最小波动率", f"{result['min_volatility']:.4f}")
                         sim_cols[2].metric("模拟次数", result['n_simulations'])
                         
                         # Best portfolio
-                        st.subheader("最优投资组合")
+                        st.markdown("<h3 class='subsection-header'>最优投资组合</h3>", unsafe_allow_html=True)
                         best_cols = st.columns(len(result['symbols']))
                         for i, (symbol, weight) in enumerate(zip(result['symbols'], result['weights_for_max_sharpe'])):
                             best_cols[i].metric(f"{symbol}", f"{weight*100:.1f}%")
@@ -989,14 +990,14 @@ def show_portfolio_page():
 
 def show_backtest_page():
     """Display backtest page"""
-    st.header("📈 策略回测分析")
+    st.markdown("<h2 class='section-header'>📈 策略回测分析</h2>", unsafe_allow_html=True)
     
     if st.session_state.stock_data is None or st.session_state.stock_data.empty:
         st.warning("请先在'🔍 股票分析'页面加载股票数据")
         return
     
     # Strategy selection
-    st.subheader("策略设置")
+    st.markdown("<h3 class='subsection-header'>策略设置</h3>", unsafe_allow_html=True)
     strategy_type = st.selectbox(
         "选择回测策略",
         ["ma_crossover", "rsi"],
@@ -1032,7 +1033,7 @@ def show_backtest_page():
             try:
                 # Run backtest
                 result = predictor.run_strategy_backtest(
-                    st.session_state.stock_data.index.name or "symbol",
+                    st.session_state.current_symbol,
                     strategy_type=strategy_type,
                     start_date="20200101",  # Add start_date parameter
                     **strategy_params
@@ -1043,7 +1044,7 @@ def show_backtest_page():
                     st.success("回测完成！")
                     
                     # Display results
-                    st.subheader("回测结果")
+                    st.markdown("<h3 class='subsection-header'>回测结果</h3>", unsafe_allow_html=True)
                     metrics = result["result"]["metrics"]
                     metric_cols = st.columns(4)
                     metric_cols[0].metric("累计收益", f"{metrics.get('cumulative_return', 0)*100:.2f}%")
@@ -1052,7 +1053,7 @@ def show_backtest_page():
                     metric_cols[3].metric("最大回撤", f"{metrics.get('max_drawdown', 0)*100:.2f}%")
                     
                     # Additional metrics
-                    st.subheader("更多指标")
+                    st.markdown("<h3 class='subsection-header'>更多指标</h3>", unsafe_allow_html=True)
                     more_cols = st.columns(4)
                     more_cols[0].metric("交易次数", len(result["result"]["engine"].trades))
                     more_cols[1].metric("胜率", f"{metrics.get('win_rate', 0)*100:.2f}%")
@@ -1060,7 +1061,7 @@ def show_backtest_page():
                     more_cols[3].metric("最大单笔收益", f"{metrics.get('max_trade_return', 0)*100:.2f}%")
                     
                     # Export backtest results
-                    st.subheader("导出结果")
+                    st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
                     backtest_json = json.dumps(result, ensure_ascii=False, indent=2)
                     st.download_button(
                         label="下载回测结果(JSON)",
@@ -1109,11 +1110,11 @@ def show_backtest_page():
                             st.error(f"生成报告时出错: {str(e)}")
                     
                     # Visualization with loading indicator
-                    st.subheader("回测图表")
+                    st.markdown("<h3 class='subsection-header'>回测图表</h3>", unsafe_allow_html=True)
                     try:
                         with st.spinner("正在生成回测图表..."):
                             predictor.plot_backtest_results_chart(
-                                st.session_state.stock_data.index.name or "symbol",
+                                st.session_state.current_symbol,
                                 strategy_type=strategy_type,
                                 **strategy_params
                             )
@@ -1130,10 +1131,10 @@ def show_backtest_page():
 
 def show_settings_page():
     """Display settings page"""
-    st.header("⚙️ 参数设置")
+    st.markdown("<h2 class='section-header'>⚙️ 参数设置</h2>", unsafe_allow_html=True)
     
     # User preferences
-    st.subheader("用户偏好设置")
+    st.markdown("<h3 class='subsection-header'>用户偏好设置</h3>", unsafe_allow_html=True)
     
     # Default stock symbol
     default_symbol = st.text_input(
@@ -1148,7 +1149,7 @@ def show_settings_page():
     )
     
     # Chart preferences
-    st.subheader("图表设置")
+    st.markdown("<h3 class='subsection-header'>图表设置</h3>", unsafe_allow_html=True)
     chart_theme = st.selectbox(
         "图表主题",
         ["默认", "暗色", "亮色"],
@@ -1173,7 +1174,7 @@ def show_settings_page():
 
 def show_help_page():
     """Display help page"""
-    st.header("ℹ️ 帮助文档")
+    st.markdown("<h2 class='section-header'>ℹ️ 帮助文档</h2>", unsafe_allow_html=True)
     
     st.markdown("""
     ### 📖 使用说明
@@ -1217,22 +1218,60 @@ def show_help_page():
     
     # Display keyboard shortcuts
     st.markdown("""
-#### 导航快捷键
-- **Alt + 1** : 跳转到首页
-- **Alt + 2** : 跳转到股票分析页面
-- **Alt + 3** : 跳转到技术指标页面
-- **Alt + 4** : 跳转到价格预测页面
-- **Alt + 5** : 跳转到风险评估页面
-- **Alt + 6** : 跳转到投资组合页面
-- **Alt + 7** : 跳转到回测分析页面
-- **Alt + 8** : 跳转到参数设置页面
-- **Alt + 9** : 跳转到帮助文档页面
-
-#### 通用快捷键
-- **Ctrl + R** : 刷新当前页面
-- **F1** : 显示帮助文档
-- **Esc** : 关闭当前对话框或弹出窗口
-    """)
+    <div class="keyboard-shortcuts">
+        <h4>导航快捷键</h4>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">1</span> : 跳转到首页
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">2</span> : 跳转到股票分析页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">3</span> : 跳转到技术指标页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">4</span> : 跳转到价格预测页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">5</span> : 跳转到风险评估页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">6</span> : 跳转到投资组合页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">7</span> : 跳转到回测分析页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">8</span> : 跳转到参数设置页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Alt</span> +
+            <span class="shortcut-key">9</span> : 跳转到帮助文档页面
+        </div>
+    </div>
+    
+    <div class="keyboard-shortcuts">
+        <h4>通用快捷键</h4>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Ctrl</span> +
+            <span class="shortcut-key">R</span> : 刷新当前页面
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">F1</span> : 显示帮助文档
+        </div>
+        <div class="shortcut-item">
+            <span class="shortcut-key">Esc</span> : 关闭当前对话框或弹出窗口
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("""
     ### ⚠️ 注意事项

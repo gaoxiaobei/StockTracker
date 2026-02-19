@@ -10,5 +10,9 @@ wheels/
 .venv
 
 # Cache
-.data_cache
-.model_cache
+.data_cache/
+.model_cache/
+.pytest_cache/
+
+# Test reports
+test_report_*.json

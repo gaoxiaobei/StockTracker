@@ -328,7 +328,7 @@ class StockTrackerTestSuite:
         print("\n=== 测试Web界面功能 ===")
         
         # 检查必要的文件是否存在
-        required_files = ['app.py', 'requirements.txt']
+        required_files = ['app.py', 'pyproject.toml']
         missing_files = [f for f in required_files if not os.path.exists(f)]
         
         if missing_files:

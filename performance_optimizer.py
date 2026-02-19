@@ -179,12 +179,15 @@ def optimize_tensorflow():
         try:
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
+            
+            # Enable mixed precision for better performance (if supported and GPU present)
+            policy = tf.keras.mixed_precision.Policy('mixed_float16')
+            tf.keras.mixed_precision.set_global_policy(policy)
+            print("TensorFlow: 已启用 GPU 混合精度优化")
         except RuntimeError as e:
             print(f"GPU配置错误: {e}")
-    
-    # Enable mixed precision for better performance (if supported)
-    policy = tf.keras.mixed_precision.Policy('mixed_float16')
-    tf.keras.mixed_precision.set_global_policy(policy)
+    else:
+        print("TensorFlow: 未检测到 GPU，使用默认精度设置")
 
 
 def batch_predict(data: pd.DataFrame, model_func, batch_size: int = 1000):
