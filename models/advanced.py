@@ -187,7 +187,7 @@ class AdvancedStockPredictor:
             tuple: (input data, output data)
         """
         dataX, dataY = [], []
-        for i in range(len(dataset) - look_back - 1):
+        for i in range(len(dataset) - look_back):
             a = dataset[i:(i + look_back), 0]
             dataX.append(a)
             dataY.append(dataset[i + look_back, 0])
@@ -359,7 +359,7 @@ class AdvancedStockPredictor:
         
         return features
     
-    def train(self, data, epochs=100, batch_size=32, validation_split=0.2):
+    def train(self, data, epochs=100, batch_size=32, validation_split=0.2, force_retrain=False):
         """
         Train model
 
@@ -368,6 +368,7 @@ class AdvancedStockPredictor:
             epochs: Number of training epochs
             batch_size: Batch size
             validation_split: Validation split ratio
+            force_retrain: If True, skip model cache and retrain
         """
         # Check if model is already cached
         params = {
@@ -377,14 +378,17 @@ class AdvancedStockPredictor:
             'look_back': self.look_back
         }
 
-        cached_model, cached_scaler = model_cache.get_cached_model(
-            self.model_type, data, params
-        )
+        if not force_retrain:
+            cached_model, cached_scaler = model_cache.get_cached_model(
+                self.model_type, data, params
+            )
 
-        if cached_model is not None and cached_scaler is not None:
-            self.model = cached_model
-            self.scaler = cached_scaler
-            return None  # Return None since model loaded from cache
+            if cached_model is not None and cached_scaler is not None:
+                self.model = cached_model
+                self.scaler = cached_scaler
+                return None  # Return None since model loaded from cache
+        else:
+            model_cache.invalidate_cached_model(self.model_type, data, params)
 
         if self.model_type in ['lstm', 'gru', 'transformer']:
             result = self._train_neural_network(data, epochs, batch_size, validation_split)
@@ -423,10 +427,20 @@ class AdvancedStockPredictor:
         # Create dataset
         X_train, y_train = self.create_dataset(train_data, self.look_back)
         X_test, y_test = self.create_dataset(test_data, self.look_back)
+
+        if len(X_train) == 0:
+            raise ValueError(
+                f"Not enough training data: need more than {self.look_back} points "
+                f"in the train split (got {len(train_data)})"
+            )
         
         # Reshape data for neural networks
         X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+        if len(X_test) > 0:
+            X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+            validation_data = (X_test, y_test)
+        else:
+            validation_data = None
         
         # Build model
         input_shape = (X_train.shape[1], 1)
@@ -443,7 +457,7 @@ class AdvancedStockPredictor:
             X_train, y_train,
             epochs=epochs,
             batch_size=batch_size,
-            validation_data=(X_test, y_test),
+            validation_data=validation_data,
             verbose=1
         )
         
@@ -536,15 +550,14 @@ class AdvancedStockPredictor:
         dataset = data['close'].values.reshape(-1, 1)
         scaled_data = self.scaler.transform(dataset)
         
-        # Create test dataset
-        test_data = scaled_data[len(scaled_data) - self.look_back - 1:, :]
+        # Create test dataset using the most recent look_back bars
+        if len(scaled_data) < self.look_back:
+            raise ValueError(
+                f"Not enough data for prediction: need {self.look_back}, got {len(scaled_data)}"
+            )
+        test_data = scaled_data[-self.look_back:, :]
         X_test = []
-        if len(test_data) >= self.look_back:
-            X_test.append(test_data[0:self.look_back, 0])
-        else:
-            # If not enough data, pad with the first value
-            padding = np.full(self.look_back - len(test_data), test_data[0, 0])
-            X_test.append(np.concatenate([padding, test_data[:, 0]]))
+        X_test.append(test_data[:, 0])
         X_test = np.array(X_test)
         
         # Reshape for neural networks
@@ -664,7 +677,13 @@ class AdvancedStockPredictor:
         # Load model based on type
         if self.model_type in ['lstm', 'gru', 'transformer']:
             model_path = os.path.join(model_dir, 'model.h5')
-            self.model = load_model(model_path)
+            if self.model_type == 'transformer':
+                self.model = load_model(
+                    model_path,
+                    custom_objects={'TimeSeriesTransformer': TimeSeriesTransformer},
+                )
+            else:
+                self.model = load_model(model_path)
             
             # Load scaler
             scaler_path = os.path.join(model_dir, 'scaler.pkl')

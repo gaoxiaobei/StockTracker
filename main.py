@@ -12,8 +12,8 @@ import time
 from data import fetcher as data_fetcher
 from models import predictors as predictor
 from analysis import technical as indicators
-from analysis import risk as risk_assessment
-from analysis import portfolio as portfolio_analysis
+from analysis import risk as risk_module
+from analysis import portfolio as portfolio_module
 from analysis import backtest as backtest_module
 
 # 导入性能优化模块
@@ -133,7 +133,7 @@ def technical_analysis():
         print(f"技术指标分析过程中出错: {str(e)}")
 
 
-def risk_assessment():
+def run_risk_assessment():
     """风险评估功能"""
     print("=== 风险评估 ===")
     symbol = input("请输入股票代码 (例如: 002607): ").strip()
@@ -164,7 +164,7 @@ def risk_assessment():
         print(f"风险评估过程中出错: {str(e)}")
 
 
-def portfolio_analysis():
+def run_portfolio_analysis():
     """投资组合分析功能"""
     print("=== 投资组合分析 ===")
     print("请输入投资组合中的股票代码和权重:")
@@ -339,7 +339,7 @@ def main():
             return
         elif args.function == "risk":
             start_time = time.time()
-            result = risk_assessment.assess_stock_risk(args.symbol)
+            result = predictor.assess_stock_risk(args.symbol)
             end_time = time.time()
             print(result)
             print(f"风险评估耗时: {end_time - start_time:.2f}秒")
@@ -387,12 +387,12 @@ def main():
             print(f"技术指标分析耗时: {end_time - start_time:.2f}秒")
         elif choice == "3":
             start_time = time.time()
-            risk_assessment()
+            run_risk_assessment()
             end_time = time.time()
             print(f"风险评估耗时: {end_time - start_time:.2f}秒")
         elif choice == "4":
             start_time = time.time()
-            portfolio_analysis()
+            run_portfolio_analysis()
             end_time = time.time()
             print(f"投资组合分析耗时: {end_time - start_time:.2f}秒")
         elif choice == "5":

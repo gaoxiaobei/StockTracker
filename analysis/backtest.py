@@ -288,6 +288,20 @@ class Strategy(ABC):
         self.name = name
         self.signals: Dict[str, pd.Series] = {}
     
+    @staticmethod
+    def to_transition_signals(position: pd.Series) -> pd.Series:
+        """
+        Convert continuous position levels into entry/exit transition signals.
+
+        Only emits +1 when entering a long state, and -1 when entering a short/
+        flat-exit state, so the backtest engine does not re-buy every day.
+        """
+        previous = position.shift(1).fillna(0)
+        signal = pd.Series(0, index=position.index, dtype=int)
+        signal[(position == 1) & (previous != 1)] = 1
+        signal[(position == -1) & (previous != -1)] = -1
+        return signal
+
     @abstractmethod
     def generate_signals(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.Series]:
         """
@@ -341,13 +355,12 @@ class MovingAverageCrossoverStrategy(Strategy):
             short_ma = df['close'].rolling(window=self.short_window).mean()
             long_ma = df['close'].rolling(window=self.long_window).mean()
             
-            # 生成信号
-            signal = pd.Series(0, index=df.index)
-            signal[short_ma > long_ma] = 1   # 买入信号
-            signal[short_ma < long_ma] = -1  # 卖出信号
-            
-            # 处理前long_window个数据点
-            signal.iloc[:self.long_window] = 0
+            # 生成持仓状态，再转为交叉信号
+            position = pd.Series(0, index=df.index)
+            position[short_ma > long_ma] = 1   # 多头状态
+            position[short_ma < long_ma] = -1  # 空头/卖出状态
+            position.iloc[:self.long_window] = 0
+            signal = self.to_transition_signals(position)
             
             signals[symbol] = signal
         
@@ -398,13 +411,12 @@ class RSIStrategy(Strategy):
             rs = gain / loss
             rsi = 100 - (100 / (1 + rs))
             
-            # 生成信号
-            signal = pd.Series(0, index=df.index)
-            signal[rsi < self.oversold] = 1   # 买入信号
-            signal[rsi > self.overbought] = -1  # 卖出信号
-            
-            # 处理前period个数据点
-            signal.iloc[:self.period] = 0
+            # 生成持仓状态，再转为进出场信号
+            position = pd.Series(0, index=df.index)
+            position[rsi < self.oversold] = 1
+            position[rsi > self.overbought] = -1
+            position.iloc[:self.period] = 0
+            signal = self.to_transition_signals(position)
             
             signals[symbol] = signal
         
@@ -452,13 +464,12 @@ class BollingerBandsStrategy(Strategy):
             upper_band = middle_band + (std_dev * self.num_std)
             lower_band = middle_band - (std_dev * self.num_std)
             
-            # 生成信号
-            signal = pd.Series(0, index=df.index)
-            signal[df['close'] < lower_band] = 1   # 买入信号
-            signal[df['close'] > upper_band] = -1  # 卖出信号
-            
-            # 处理前period个数据点
-            signal.iloc[:self.period] = 0
+            # 生成持仓状态，再转为进出场信号
+            position = pd.Series(0, index=df.index)
+            position[df['close'] < lower_band] = 1
+            position[df['close'] > upper_band] = -1
+            position.iloc[:self.period] = 0
+            signal = self.to_transition_signals(position)
             
             signals[symbol] = signal
         
@@ -501,13 +512,12 @@ class MomentumStrategy(Strategy):
             # 计算动量
             momentum = df['close'] / df['close'].shift(self.period) - 1
             
-            # 生成信号（简单阈值）
-            signal = pd.Series(0, index=df.index)
-            signal[momentum > 0.05] = 1   # 买入信号（上涨超过5%）
-            signal[momentum < -0.05] = -1  # 卖出信号（下跌超过5%）
-            
-            # 处理前period个数据点
-            signal.iloc[:self.period] = 0
+            # 生成持仓状态，再转为进出场信号
+            position = pd.Series(0, index=df.index)
+            position[momentum > 0.05] = 1
+            position[momentum < -0.05] = -1
+            position.iloc[:self.period] = 0
+            signal = self.to_transition_signals(position)
             
             signals[symbol] = signal
         
@@ -556,13 +566,12 @@ class MeanReversionStrategy(Strategy):
             # 计算z-score
             z_score = (df['close'] - mean_price) / std_price
             
-            # 生成信号
-            signal = pd.Series(0, index=df.index)
-            signal[z_score < -self.threshold] = 1   # 买入信号（价格低于均值过多）
-            signal[z_score > self.threshold] = -1   # 卖出信号（价格高于均值过多）
-            
-            # 处理前period个数据点
-            signal.iloc[:self.period] = 0
+            # 生成持仓状态，再转为进出场信号
+            position = pd.Series(0, index=df.index)
+            position[z_score < -self.threshold] = 1
+            position[z_score > self.threshold] = -1
+            position.iloc[:self.period] = 0
+            signal = self.to_transition_signals(position)
             
             signals[symbol] = signal
         
@@ -693,12 +702,16 @@ def run_backtest(data: Dict[str, pd.DataFrame],
                     signal = signal_series.loc[date]
                     price = prices[symbol]
                     
-                    if signal == 1:  # 买入信号
-                        # 简单策略：买入1手（100股）
-                        engine.buy(symbol, 100, price, date)
+                    if signal == 1:  # 买入信号：仅在空仓时买入，避免重复加仓
+                        has_position = (
+                            symbol in engine.positions
+                            and engine.positions[symbol].quantity > 0
+                        )
+                        if not has_position:
+                            engine.buy(symbol, 100, price, date)
                     elif signal == -1:  # 卖出信号
                         # 卖出所有持仓
-                        if symbol in engine.positions:
+                        if symbol in engine.positions and engine.positions[symbol].quantity > 0:
                             quantity = engine.positions[symbol].quantity
                             engine.sell(symbol, quantity, price, date)
             

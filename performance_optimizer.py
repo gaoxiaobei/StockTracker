@@ -87,6 +87,20 @@ class ModelCache:
         except Exception as e:
             print(f"缓存模型时出错: {str(e)}")
 
+    def invalidate_cached_model(self, model_type: str, data: pd.DataFrame, params: Dict[str, Any]) -> bool:
+        """Remove a cached model entry so the next train call retrains."""
+        data_hash = hashlib.md5(pd.util.hash_pandas_object(data).values).hexdigest()
+        cache_key = self._generate_cache_key(model_type, data_hash, params)
+        cache_file_path = self._get_cache_file_path(cache_key)
+        if os.path.exists(cache_file_path):
+            try:
+                os.remove(cache_file_path)
+                print(f"已清除缓存的 {model_type} 模型")
+                return True
+            except Exception as e:
+                print(f"清除模型缓存时出错: {str(e)}")
+        return False
+
 
 class DataLoader:
     """
@@ -109,7 +123,7 @@ class DataLoader:
     def create_sequences(self, data: np.ndarray):
         """Create sequences for time series prediction."""
         X, y = [], []
-        for i in range(len(data) - self.look_back - 1):
+        for i in range(len(data) - self.look_back):
             X.append(data[i:(i + self.look_back), 0])
             y.append(data[i + self.look_back, 0])
         return np.array(X), np.array(y)

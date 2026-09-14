@@ -6,6 +6,17 @@ from scipy.optimize import minimize
 import warnings
 warnings.filterwarnings('ignore')
 
+from utils.json_encoder import to_json_compatible
+
+
+def _serialize_portfolio_info(portfolio_info: Dict) -> Dict:
+    """Convert portfolio DataFrames to JSON-friendly structures."""
+    serialized = dict(portfolio_info)
+    for key in ('returns', 'cov_matrix'):
+        if key in serialized and isinstance(serialized[key], (pd.DataFrame, pd.Series)):
+            serialized[key] = to_json_compatible(serialized[key])
+    return serialized
+
 
 class PortfolioAnalyzer:
     """
@@ -192,7 +203,7 @@ class PortfolioAnalyzer:
 
     def minimum_variance_portfolio(self, portfolio_info: Dict) -> Dict:
         """
-        最小方差组合优化
+        最小方差组合优化（仅最小化方差，无收益目标约束）
         
         Args:
             portfolio_info: 投资组合信息
@@ -200,7 +211,50 @@ class PortfolioAnalyzer:
         Returns:
             dict: 最小方差组合结果
         """
-        return self.mean_variance_optimization(portfolio_info, target_return=None)
+        returns_df = portfolio_info['returns']
+        expected_returns = returns_df.mean() * 252
+        cov_matrix = portfolio_info['cov_matrix']
+        n_assets = portfolio_info['n_assets']
+
+        constraints = [{'type': 'eq', 'fun': lambda x: np.sum(x) - 1}]
+        bounds = tuple((0, 1) for _ in range(n_assets))
+        init_weights = np.array([1 / n_assets] * n_assets)
+
+        def variance_objective(weights):
+            weights_array = np.array(weights)
+            return np.dot(weights_array.T, np.dot(cov_matrix, weights_array))
+
+        result = minimize(
+            variance_objective,
+            init_weights,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+        )
+
+        if result.success:
+            optimal_weights = result.x
+            port_return = np.sum(optimal_weights * expected_returns)
+            weights_array = np.array(optimal_weights)
+            port_variance = np.dot(weights_array.T, np.dot(cov_matrix, weights_array))
+            port_std = np.sqrt(port_variance) * np.sqrt(252)
+            risk_free_rate = 0.03
+            sharpe = (port_return - risk_free_rate) / port_std if port_std != 0 else 0
+
+            return {
+                'success': True,
+                'weights': [float(w) for w in optimal_weights],
+                'expected_return': float(port_return),
+                'volatility': float(port_std),
+                'sharpe_ratio': float(sharpe),
+                'message': '优化成功',
+                'method': 'minimum_variance'
+            }
+
+        return {
+            'success': False,
+            'message': f"优化失败: {result.message}"
+        }
 
     def efficient_frontier(self, portfolio_info: Dict, 
                           n_portfolios: int = 100) -> Dict:
@@ -695,10 +749,10 @@ def analyze_portfolio(stocks_data: Dict[str, pd.DataFrame],
         
         return {
             'success': True,
-            'portfolio_info': portfolio_info,
-            'metrics': metrics,
-            'risk_contribution': risk_contribution,
-            'efficient_frontier': efficient_frontier
+            'portfolio_info': _serialize_portfolio_info(portfolio_info),
+            'metrics': to_json_compatible(metrics),
+            'risk_contribution': to_json_compatible(risk_contribution),
+            'efficient_frontier': to_json_compatible(efficient_frontier)
         }
     except Exception as e:
         return {

@@ -41,7 +41,7 @@ class StockPredictor:
             tuple: (输入数据, 输出数据)
         """
         dataX, dataY = [], []
-        for i in range(len(dataset) - look_back - 1):
+        for i in range(len(dataset) - look_back):
             a = dataset[i:(i + look_back), 0]
             dataX.append(a)
             dataY.append(dataset[i + look_back, 0])
@@ -67,7 +67,7 @@ class StockPredictor:
         self.model = model
         return model
     
-    def train(self, data, epochs=100, batch_size=32):
+    def train(self, data, epochs=100, batch_size=32, force_retrain=False):
         """
         训练模型
         
@@ -75,6 +75,7 @@ class StockPredictor:
             data: 训练数据
             epochs: 训练轮数
             batch_size: 批次大小
+            force_retrain: 为 True 时跳过模型缓存强制重训
         """
         # Check if model is already cached
         params = {
@@ -83,14 +84,17 @@ class StockPredictor:
             'look_back': self.look_back
         }
 
-        cached_model, cached_scaler = model_cache.get_cached_model(
-            "base_lstm", data, params
-        )
+        if not force_retrain:
+            cached_model, cached_scaler = model_cache.get_cached_model(
+                "base_lstm", data, params
+            )
 
-        if cached_model is not None and cached_scaler is not None:
-            self.model = cached_model
-            self.scaler = cached_scaler
-            return None
+            if cached_model is not None and cached_scaler is not None:
+                self.model = cached_model
+                self.scaler = cached_scaler
+                return None
+        else:
+            model_cache.invalidate_cached_model("base_lstm", data, params)
 
         # 数据预处理
         dataset = data['close'].values.reshape(-1, 1)
@@ -104,10 +108,20 @@ class StockPredictor:
         # 创建数据集
         X_train, y_train = self.create_dataset(train_data, self.look_back)
         X_test, y_test = self.create_dataset(test_data, self.look_back)
+
+        if len(X_train) == 0:
+            raise ValueError(
+                f"训练数据不足：需要至少 {self.look_back + 1} 条记录，"
+                f"当前训练集仅有 {len(train_data)} 条"
+            )
         
         # 重塑数据以适应LSTM [samples, time steps, features]
         X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-        X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+        if len(X_test) > 0:
+            X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+            validation_data = (X_test, y_test)
+        else:
+            validation_data = None
         
         # 构建模型
         if self.model is None:
@@ -118,7 +132,7 @@ class StockPredictor:
             X_train, y_train,
             epochs=epochs,
             batch_size=batch_size,
-            validation_data=(X_test, y_test),
+            validation_data=validation_data,
             verbose=1
         )
         
@@ -144,10 +158,14 @@ class StockPredictor:
         dataset = data['close'].values.reshape(-1, 1)
         scaled_data = self.scaler.transform(dataset)
         
-        # 创建测试数据集
-        test_data = scaled_data[len(scaled_data) - self.look_back - 1:, :]
+        # 创建测试数据集：使用最近 look_back 根 K 线
+        if len(scaled_data) < self.look_back:
+            raise ValueError(
+                f"预测数据不足：需要至少 {self.look_back} 条记录，当前仅有 {len(scaled_data)} 条"
+            )
+        test_data = scaled_data[-self.look_back:, :]
         X_test = []
-        X_test.append(test_data[0:self.look_back, 0])
+        X_test.append(test_data[:, 0])
         X_test = np.array(X_test)
         X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
         

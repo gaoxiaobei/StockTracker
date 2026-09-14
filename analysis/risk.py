@@ -12,7 +12,7 @@ import numpy as np
 import warnings
 from typing import Union, Optional, Dict, Any
 from scipy import stats
-from data.fetcher import get_stock_data as data_fetcher
+from data.fetcher import get_stock_data as data_fetcher, get_index_data
 
 
 def calculate_volatility(returns: pd.Series, annualize: bool = True) -> float:
@@ -260,28 +260,12 @@ def get_market_returns(market_symbol: str = "sh000001", start_date: Optional[str
     Returns:
         pd.Series: 市场指数收益率序列
     """
-    # 获取市场指数数据
-    # 尝试不同的市场指数格式
-    market_data = pd.DataFrame()  # 初始化为空DataFrame
-    market_symbols_to_try = [market_symbol]
-    
-    # 如果是上证指数，尝试不同的格式
-    if market_symbol == "sh000001":
-        market_symbols_to_try = ["000001", "sh000001", "szzs"]
-    
-    for symbol in market_symbols_to_try:
-        try:
-            market_data = data_fetcher(
-                symbol=symbol,
-                period="daily",
-                start_date=start_date,
-                adjust="qfq"
-            )
-            if not market_data.empty:
-                break
-        except Exception as e:
-            continue
-    
+    market_data = get_index_data(
+        symbol=market_symbol,
+        period="daily",
+        start_date=start_date,
+    )
+
     if market_data.empty:
         raise ValueError(f"无法获取市场指数 {market_symbol} 的数据")
     
@@ -531,27 +515,12 @@ def comprehensive_risk_assessment(stock_symbol: str, market_symbol: str = "sh000
     if stock_data.empty:
         raise ValueError(f"无法获取股票 {stock_symbol} 的数据")
     
-    # 获取市场指数数据
-    # 尝试不同的市场指数格式
-    market_data = pd.DataFrame()  # 初始化为空DataFrame
-    market_symbols_to_try = [market_symbol]
-    
-    # 如果是上证指数，尝试不同的格式
-    if market_symbol == "sh000001":
-        market_symbols_to_try = ["000001", "sh000001", "szzs"]
-    
-    for symbol in market_symbols_to_try:
-        try:
-            market_data = data_fetcher(
-                symbol=symbol,
-                period="daily",
-                start_date=start_date,
-                adjust="qfq"
-            )
-            if not market_data.empty:
-                break
-        except Exception as e:
-            continue
+    # 获取市场指数数据（使用指数专用接口，避免把 000001 当成平安银行）
+    market_data = get_index_data(
+        symbol=market_symbol,
+        period="daily",
+        start_date=start_date,
+    )
     
     if market_data.empty:
         raise ValueError(f"无法获取市场指数 {market_symbol} 的数据")

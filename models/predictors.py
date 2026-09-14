@@ -44,14 +44,14 @@ def predict_stock_price(symbol, days=5, model_type='lstm', force_retrain=False) 
     # 但是我们在这里需要传递 epochs 等参数
     print(f"正在准备 {model_type.upper()} 模型...")
     
-    epochs = 50 if not force_retrain else 50
-    # 如果 force_retrain 为 False，我们需要清除缓存中对应的条目或者让 train 自己处理
-    # 实际上 advanced_model.train 已经调用了 model_cache.get_cached_model
+    epochs = 50
     
     if model_type in ['lstm', 'gru', 'transformer']:
-        history = predictor.train(stock_data, epochs=epochs, batch_size=32)
+        history = predictor.train(
+            stock_data, epochs=epochs, batch_size=32, force_retrain=force_retrain
+        )
     else:
-        history = predictor.train(stock_data)
+        history = predictor.train(stock_data, force_retrain=force_retrain)
     
     # 预测未来价格 - 实现多步预测
     print(f"正在预测未来 {days} 天的价格...")

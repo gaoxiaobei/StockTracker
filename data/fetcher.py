@@ -1,14 +1,18 @@
 import akshare as ak
 import pandas as pd
-from typing import Optional
+from typing import Optional, Callable, Any
 import hashlib
 import joblib
 import os
+import time
 from datetime import datetime, timedelta
 
 
 # Cache directory
 CACHE_DIR = ".data_cache"
+MAX_RETRIES = 3
+RETRY_BASE_DELAY_SECONDS = 1.0
+
 
 def _get_cache_key(symbol: str, period: str, start_date: Optional[str], end_date: Optional[str], adjust: str) -> str:
     """Generate a cache key based on parameters."""
@@ -28,6 +32,31 @@ def _is_cache_valid(file_path: str, max_age_hours: int = 24) -> bool:
 
     file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
     return (datetime.now() - file_time).total_seconds() < max_age_hours * 3600
+
+
+def _retry_request(fetch_fn: Callable[[], Any], label: str, max_retries: int = MAX_RETRIES):
+    """
+    Execute a network fetch with exponential backoff.
+
+    Retries on exceptions and empty DataFrame responses (transient upstream failures).
+    """
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            result = fetch_fn()
+            if isinstance(result, pd.DataFrame) and result.empty:
+                raise ValueError("empty dataframe response")
+            return result
+        except Exception as e:
+            last_error = e
+            if attempt >= max_retries:
+                break
+            delay = RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            print(f"{label} 第 {attempt} 次请求失败 ({e})，{delay:.1f}s 后重试...")
+            time.sleep(delay)
+    if last_error is not None:
+        raise last_error
+    return pd.DataFrame()
 
 def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str] = None,
                    end_date: Optional[str] = None, adjust: str = "qfq") -> pd.DataFrame:
@@ -69,19 +98,21 @@ def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str]
         symbol = symbol.strip()
 
         # 获取前复权数据
-        params = {}
-        if start_date is not None:
-            params["start_date"] = start_date
-        if end_date is not None:
-            params["end_date"] = end_date
+        def _fetch_once():
+            params = {}
+            if start_date is not None:
+                params["start_date"] = start_date
+            if end_date is not None:
+                params["end_date"] = end_date
+            return ak.stock_zh_a_hist(
+                symbol=symbol,
+                period=period,
+                adjust=adjust,
+                timeout=30,
+                **params
+            )
 
-        stock_df = ak.stock_zh_a_hist(
-            symbol=symbol,
-            period=period,
-            adjust=adjust,
-            timeout=30,  # 设置超时时间
-            **params
-        )
+        stock_df = _retry_request(_fetch_once, f"股票 {symbol}")
 
         # 检查返回数据是否为空
         if stock_df is None or stock_df.empty:
@@ -137,6 +168,118 @@ def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str]
         return pd.DataFrame()
 
 
+def get_index_data(symbol: str = "000001", period: str = "daily",
+                   start_date: Optional[str] = None,
+                   end_date: Optional[str] = None) -> pd.DataFrame:
+    """
+    获取A股指数历史数据（使用指数专用接口，避免与个股代码混淆）。
+
+    Args:
+        symbol: 指数代码，上证指数为 "000001" 或 "sh000001"
+        period: 数据周期 ("daily", "weekly", "monthly")
+        start_date: 开始日期 (格式: "YYYYMMDD")
+        end_date: 结束日期 (格式: "YYYYMMDD")
+
+    Returns:
+        pd.DataFrame: 指数数据，索引为日期，含 close/open/high/low/volume
+    """
+    cache_key = _get_cache_key(f"index_{symbol}", period, start_date, end_date, "index")
+    cache_file_path = _get_cache_file_path(cache_key)
+
+    if _is_cache_valid(cache_file_path):
+        try:
+            with open(cache_file_path, 'rb') as f:
+                return joblib.load(f)
+        except Exception:
+            pass
+
+    # Normalize aliases. Prefer sina-style codes for stock_zh_index_daily.
+    symbol_aliases = {
+        "000001": "sh000001",
+        "szzs": "sh000001",
+        "上证指数": "sh000001",
+        "sh000001": "sh000001",
+    }
+    sina_symbol = symbol_aliases.get(symbol, symbol)
+    if not sina_symbol.startswith(("sh", "sz")):
+        # Default unknown numeric codes to Shanghai prefix for index fetch
+        sina_symbol = f"sh{sina_symbol}" if sina_symbol.isdigit() else sina_symbol
+
+    em_symbol = sina_symbol[2:] if sina_symbol.startswith(("sh", "sz")) else sina_symbol
+
+    def _normalize_index_frame(index_df: pd.DataFrame) -> pd.DataFrame:
+        if '日期' in index_df.columns:
+            index_df = index_df.rename(columns={
+                '日期': 'date',
+                '开盘': 'open',
+                '收盘': 'close',
+                '最高': 'high',
+                '最低': 'low',
+                '成交量': 'volume',
+                '成交额': 'amount',
+            })
+        if 'date' in index_df.columns:
+            index_df['date'] = pd.to_datetime(index_df['date'])
+            index_df.set_index('date', inplace=True)
+        elif not isinstance(index_df.index, pd.DatetimeIndex):
+            index_df.index = pd.to_datetime(index_df.index)
+
+        required_columns = ['close', 'open', 'high', 'low']
+        missing = [c for c in required_columns if c not in index_df.columns]
+        if missing:
+            raise ValueError(f"missing columns: {missing}")
+
+        index_df = index_df.sort_index().dropna(subset=['close'])
+
+        if start_date:
+            index_df = index_df[index_df.index >= pd.to_datetime(start_date)]
+        if end_date:
+            index_df = index_df[index_df.index <= pd.to_datetime(end_date)]
+        return index_df
+
+    def _fetch_sina():
+        return ak.stock_zh_index_daily(symbol=sina_symbol)
+
+    def _fetch_em():
+        params = {"symbol": em_symbol, "period": period}
+        if start_date is not None:
+            params["start_date"] = start_date
+        if end_date is not None:
+            params["end_date"] = end_date
+        return ak.index_zh_a_hist(**params)
+
+    try:
+        index_df = None
+        last_error = None
+        for fetch_fn, label in ((_fetch_sina, "sina"), (_fetch_em, "eastmoney")):
+            try:
+                raw = _retry_request(fetch_fn, f"指数 {symbol}/{label}")
+                index_df = _normalize_index_frame(raw)
+                if not index_df.empty:
+                    break
+            except Exception as e:
+                last_error = e
+                continue
+
+        if index_df is None or index_df.empty:
+            if last_error:
+                raise last_error
+            print(f"警告：指数 {symbol} 没有返回任何数据")
+            return pd.DataFrame()
+
+        try:
+            with open(cache_file_path, 'wb') as f:
+                joblib.dump(index_df, f)
+            print(f"指数 {symbol} 数据已缓存")
+        except Exception as e:
+            print(f"缓存指数数据时出错: {str(e)}")
+
+        return index_df
+    except Exception as e:
+        print(f"获取指数 {symbol} 数据时出错: {str(e)}")
+        return pd.DataFrame()
+
+
 def get_stock_info(symbol: str) -> dict:
     """
     获取股票基本信息
@@ -171,9 +314,12 @@ def get_stock_info(symbol: str) -> dict:
         symbol = symbol.strip()
 
         # 获取股票信息
-        stock_info = ak.stock_individual_info_em(symbol=symbol)
+        def _fetch_info_once():
+            return ak.stock_individual_info_em(symbol=symbol)
 
-        if stock_info is None or stock_info.empty:
+        stock_info = _retry_request(_fetch_info_once, f"股票信息 {symbol}")
+
+        if stock_info is None or (isinstance(stock_info, pd.DataFrame) and stock_info.empty):
             print(f"警告：无法获取股票 {symbol} 的基本信息")
             return {}
 

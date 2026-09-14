@@ -25,6 +25,7 @@ import analysis.risk as risk_assessment
 import analysis.portfolio as portfolio
 import analysis.backtest as backtest
 import visualization.charts as visualization
+from utils.json_encoder import dumps_json
 
 # Set page configuration
 st.set_page_config(
@@ -553,7 +554,7 @@ def show_prediction_page():
                     
                     # Export prediction results
                     st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
-                    pred_json = json.dumps(result, ensure_ascii=False, indent=2)
+                    pred_json = dumps_json(result)
                     st.download_button(
                         label="下载预测结果(JSON)",
                         data=pred_json,
@@ -700,7 +701,7 @@ def show_risk_assessment_page():
                     
                     # Export risk assessment results
                     st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
-                    risk_json = json.dumps(result, ensure_ascii=False, indent=2)
+                    risk_json = dumps_json(result)
                     st.download_button(
                         label="下载风险评估结果(JSON)",
                         data=risk_json,
@@ -849,7 +850,7 @@ def show_portfolio_page():
                             
                             # Export portfolio analysis results
                             st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
-                            portfolio_json = json.dumps(result, ensure_ascii=False, indent=2)
+                            portfolio_json = dumps_json(result)
                             st.download_button(
                                 label="下载投资组合分析结果(JSON)",
                                 data=portfolio_json,
@@ -1062,7 +1063,7 @@ def show_backtest_page():
                     
                     # Export backtest results
                     st.markdown("<h3 class='subsection-header'>导出结果</h3>", unsafe_allow_html=True)
-                    backtest_json = json.dumps(result, ensure_ascii=False, indent=2)
+                    backtest_json = dumps_json(result)
                     st.download_button(
                         label="下载回测结果(JSON)",
                         data=backtest_json,
