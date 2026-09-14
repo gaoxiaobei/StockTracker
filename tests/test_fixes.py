@@ -221,13 +221,76 @@ def test_fetcher_retry_on_failure():
             raise ConnectionError("boom")
         return pd.DataFrame({"close": [1, 2, 3]})
 
-    with mock.patch.object(data_fetcher, "RETRY_BASE_DELAY_SECONDS", 0):
+    with mock.patch.object(data_fetcher, "RETRY_BASE_DELAY_SECONDS", 0), mock.patch.object(
+        data_fetcher, "MIN_REQUEST_INTERVAL_SECONDS", 0
+    ):
         result = data_fetcher._retry_request(flaky, "unit-test", max_retries=3)
     assert calls["n"] == 3
     assert len(result) == 3
     print("✓ fetcher 指数退避重试成功")
     return True
 
+
+def test_market_symbol_and_normalize():
+    """Bare A-share codes map to sh/sz; OHLCV normalization fills volume when needed."""
+    print("\n=== 测试市场代码与列归一化 ===")
+    assert data_fetcher._to_market_symbol("000001") == "sz000001"
+    assert data_fetcher._to_market_symbol("600036") == "sh600036"
+    assert data_fetcher._to_market_symbol("SH600036") == "sh600036"
+
+    raw = pd.DataFrame(
+        {
+            "date": ["2024-01-02", "2024-01-03"],
+            "open": [10.0, 11.0],
+            "close": [10.0, 11.0],
+            "high": [10.5, 11.5],
+            "low": [9.5, 10.5],
+            "amount": [1000.0, 2200.0],
+        }
+    )
+    normalized = data_fetcher._normalize_ohlcv(raw)
+    assert "volume" in normalized.columns
+    assert len(normalized) == 2
+    print("✓ 市场代码与 OHLCV 归一化成功")
+    return True
+
+def test_stock_data_source_fallback():
+    """When East Money fails, fetcher should fall back to the next source."""
+    print("\n=== 测试多数据源回退 ===")
+    dates = pd.date_range("2024-01-01", periods=15, freq="B")
+    good = pd.DataFrame(
+        {
+            "date": dates,
+            "open": range(15),
+            "close": range(15),
+            "high": range(1, 16),
+            "low": range(15),
+            "volume": [100] * 15,
+        }
+    )
+
+    def boom():
+        raise ConnectionError("eastmoney blocked")
+
+    def ok():
+        return good.copy()
+
+    with mock.patch.object(data_fetcher, "MIN_REQUEST_INTERVAL_SECONDS", 0), mock.patch.object(
+        data_fetcher, "RETRY_BASE_DELAY_SECONDS", 0
+    ), mock.patch.object(
+        data_fetcher,
+        "_stock_data_sources",
+        return_value=[("eastmoney", boom), ("sina", ok)],
+    ), mock.patch.object(data_fetcher, "_is_cache_valid", return_value=False), mock.patch(
+        "builtins.open", mock.mock_open()
+    ), mock.patch.object(data_fetcher.joblib, "dump"):
+        result = data_fetcher.get_stock_data("000001", start_date="20240101")
+
+    assert not result.empty
+    assert len(result) == 15
+    assert "close" in result.columns
+    print("✓ 东财失败后回退到备用数据源成功")
+    return True
 
 def test_cli_risk_helper_names():
     """main.py interactive helpers must not shadow risk/portfolio modules."""
@@ -264,6 +327,8 @@ def main():
         test_predict_window_uses_last_look_back,
         test_backtest_transition_signals,
         test_fetcher_retry_on_failure,
+        test_market_symbol_and_normalize,
+        test_stock_data_source_fallback,
         test_cli_risk_helper_names,
         test_force_retrain_invalidates_cache_api,
     ]

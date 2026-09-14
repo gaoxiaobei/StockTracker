@@ -198,6 +198,7 @@ NewConnectionError: Failed to establish a new connection
 ```
 HTTPError: 429 Client Error: Too Many Requests
 RateLimitError: API rate limit exceeded
+ConnectionError: ('Connection aborted.', RemoteDisconnected(...))
 ```
 
 **解决方案**:
@@ -213,6 +214,23 @@ RateLimitError: API rate limit exceeded
 **预防措施**:
 - 实现请求频率控制
 - 使用本地缓存避免重复请求
+
+### 第一次获取成功、后续失败
+
+**问题描述**: `ak.stock_zh_a_hist`（东财）第一次能拿到数据，紧接着再请求就报 `RemoteDisconnected` / 空响应，看起来像“数据集坏了”。
+
+**原因**: 东财对同一出口 IP 的访问频率做了限制。第一次成功后继续打同一接口，连接会被主动断开。这不是股票代码错误，也通常不是本地缓存损坏。
+
+**解决方案**:
+1. StockTracker 的 `data/fetcher.py` 已内置：
+   - 请求节流（请求间隔）
+   - 指数退避重试
+   - 东财失败后自动回退到新浪 / 腾讯历史行情接口
+   - 本地 `.data_cache` 缓存，避免重复打上游
+2. 批量拉多只股票时不要并发狂刷东财；优先走 `get_stock_data()`，让缓存和回退生效
+3. 若仍频繁失败，可更换网络出口或稍后再试
+
+**相关 Issue**: [#1 数据集](https://github.com/gaoxiaobei/StockTracker/issues/1)
 
 ---
 

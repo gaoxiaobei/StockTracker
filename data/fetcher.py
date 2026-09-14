@@ -1,17 +1,25 @@
 import akshare as ak
 import pandas as pd
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, List, Tuple
 import hashlib
 import joblib
 import os
+import random
+import threading
 import time
 from datetime import datetime, timedelta
 
 
 # Cache directory
 CACHE_DIR = ".data_cache"
-MAX_RETRIES = 3
-RETRY_BASE_DELAY_SECONDS = 1.0
+MAX_RETRIES = 4
+RETRY_BASE_DELAY_SECONDS = 1.5
+MIN_REQUEST_INTERVAL_SECONDS = 1.2
+
+# Serialize outbound network calls and keep a minimum gap between them.
+# East Money (and similar) endpoints frequently drop connections when hit too fast.
+_request_lock = threading.Lock()
+_last_request_at = 0.0
 
 
 def _get_cache_key(symbol: str, period: str, start_date: Optional[str], end_date: Optional[str], adjust: str) -> str:
@@ -19,11 +27,13 @@ def _get_cache_key(symbol: str, period: str, start_date: Optional[str], end_date
     cache_str = f"{symbol}_{period}_{start_date}_{end_date}_{adjust}"
     return hashlib.md5(cache_str.encode()).hexdigest()
 
+
 def _get_cache_file_path(cache_key: str) -> str:
     """Get the full path for the cache file."""
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR)
     return os.path.join(CACHE_DIR, f"{cache_key}.joblib")
+
 
 def _is_cache_valid(file_path: str, max_age_hours: int = 24) -> bool:
     """Check if cache file exists and is not older than max_age_hours."""
@@ -34,15 +44,38 @@ def _is_cache_valid(file_path: str, max_age_hours: int = 24) -> bool:
     return (datetime.now() - file_time).total_seconds() < max_age_hours * 3600
 
 
+def _to_market_symbol(symbol: str) -> str:
+    """Convert bare A-share codes to sina/tencent style market symbols (sh/sz)."""
+    symbol = symbol.strip().lower()
+    if symbol.startswith(("sh", "sz")):
+        return symbol
+    # Shanghai: 60xxxx / 68xxxx (STAR) / 90xxxx B-shares; funds often 5xxxxx
+    if symbol.startswith(("5", "6", "9")):
+        return f"sh{symbol}"
+    return f"sz{symbol}"
+
+
+def _throttle_requests() -> None:
+    """Ensure a minimum interval between outbound data-source requests."""
+    global _last_request_at
+    with _request_lock:
+        now = time.monotonic()
+        wait = MIN_REQUEST_INTERVAL_SECONDS - (now - _last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at = time.monotonic()
+
+
 def _retry_request(fetch_fn: Callable[[], Any], label: str, max_retries: int = MAX_RETRIES):
     """
-    Execute a network fetch with exponential backoff.
+    Execute a network fetch with throttling and exponential backoff.
 
     Retries on exceptions and empty DataFrame responses (transient upstream failures).
     """
     last_error = None
     for attempt in range(1, max_retries + 1):
         try:
+            _throttle_requests()
             result = fetch_fn()
             if isinstance(result, pd.DataFrame) and result.empty:
                 raise ValueError("empty dataframe response")
@@ -51,12 +84,112 @@ def _retry_request(fetch_fn: Callable[[], Any], label: str, max_retries: int = M
             last_error = e
             if attempt >= max_retries:
                 break
-            delay = RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1))
+            delay = RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)) + random.uniform(0, 0.6)
             print(f"{label} 第 {attempt} 次请求失败 ({e})，{delay:.1f}s 后重试...")
             time.sleep(delay)
     if last_error is not None:
         raise last_error
     return pd.DataFrame()
+
+
+def _normalize_ohlcv(stock_df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize Chinese/English OHLCV frames to a dated index with English columns."""
+    if stock_df is None or stock_df.empty:
+        return pd.DataFrame()
+
+    stock_df = stock_df.copy()
+
+    if "日期" in stock_df.columns:
+        stock_df = stock_df.rename(columns={
+            "日期": "date",
+            "开盘": "open",
+            "收盘": "close",
+            "最高": "high",
+            "最低": "low",
+            "成交量": "volume",
+            "成交额": "amount",
+        })
+
+    # Tencent hist has amount but no volume — approximate share volume from amount/close.
+    if "volume" not in stock_df.columns and "amount" in stock_df.columns and "close" in stock_df.columns:
+        close = stock_df["close"].replace(0, pd.NA)
+        stock_df["volume"] = (stock_df["amount"] / close).fillna(0)
+
+    required_columns = ["close", "open", "high", "low", "volume"]
+    missing_columns = [col for col in required_columns if col not in stock_df.columns]
+    if missing_columns:
+        raise ValueError(f"missing columns: {missing_columns}")
+
+    if "date" in stock_df.columns:
+        stock_df["date"] = pd.to_datetime(stock_df["date"])
+        stock_df.set_index("date", inplace=True)
+    elif not isinstance(stock_df.index, pd.DatetimeIndex):
+        stock_df.index = pd.to_datetime(stock_df.index)
+
+    stock_df = stock_df.sort_index().dropna(subset=required_columns)
+    return stock_df
+
+
+def _stock_data_sources(
+    symbol: str,
+    period: str,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    adjust: str,
+) -> List[Tuple[str, Callable[[], pd.DataFrame]]]:
+    """
+    Ordered data-source fallbacks.
+
+    East Money is preferred when available, but it frequently rate-limits
+    (RemoteDisconnected after the first successful call). Sina / Tencent are
+    used as backups so repeated fetches keep working.
+    """
+    market_symbol = _to_market_symbol(symbol)
+    resolved_end = end_date or datetime.now().strftime("%Y%m%d")
+    resolved_start = start_date or "19700101"
+
+    def _fetch_eastmoney():
+        params = {}
+        if start_date is not None:
+            params["start_date"] = start_date
+        if end_date is not None:
+            params["end_date"] = end_date
+        return ak.stock_zh_a_hist(
+            symbol=symbol,
+            period=period,
+            adjust=adjust,
+            timeout=30,
+            **params,
+        )
+
+    def _fetch_sina():
+        # Sina daily API uses market-prefixed symbols and YYYYMMDD dates.
+        return ak.stock_zh_a_daily(
+            symbol=market_symbol,
+            start_date=resolved_start,
+            end_date=resolved_end,
+            adjust=adjust,
+        )
+
+    def _fetch_tencent():
+        return ak.stock_zh_a_hist_tx(
+            symbol=market_symbol,
+            start_date=resolved_start,
+            end_date=resolved_end,
+            adjust=adjust,
+            timeout=30,
+        )
+
+    sources: List[Tuple[str, Callable[[], pd.DataFrame]]] = [
+        ("eastmoney", _fetch_eastmoney),
+    ]
+    # Sina / Tencent daily APIs are only valid fallbacks for daily bars.
+    # Weekly/monthly still rely on East Money (with retry/throttle).
+    if period == "daily":
+        sources.append(("sina", _fetch_sina))
+        sources.append(("tencent", _fetch_tencent))
+    return sources
+
 
 def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str] = None,
                    end_date: Optional[str] = None, adjust: str = "qfq") -> pd.DataFrame:
@@ -96,58 +229,30 @@ def get_stock_data(symbol: str, period: str = "daily", start_date: Optional[str]
             return pd.DataFrame()
 
         symbol = symbol.strip()
+        last_error = None
+        stock_df = None
 
-        # 获取前复权数据
-        def _fetch_once():
-            params = {}
-            if start_date is not None:
-                params["start_date"] = start_date
-            if end_date is not None:
-                params["end_date"] = end_date
-            return ak.stock_zh_a_hist(
-                symbol=symbol,
-                period=period,
-                adjust=adjust,
-                timeout=30,
-                **params
-            )
+        for source_name, fetch_fn in _stock_data_sources(symbol, period, start_date, end_date, adjust):
+            try:
+                # Fewer retries per source; multi-source fallback recovers faster than
+                # hammering a single rate-limited endpoint.
+                raw = _retry_request(fetch_fn, f"股票 {symbol}/{source_name}", max_retries=2)
+                stock_df = _normalize_ohlcv(raw)
+                if stock_df.empty:
+                    raise ValueError("normalized dataframe is empty")
+                print(f"股票 {symbol} 数据来源: {source_name}")
+                break
+            except Exception as e:
+                last_error = e
+                print(f"股票 {symbol} 数据源 {source_name} 失败: {e}")
+                stock_df = None
+                continue
 
-        stock_df = _retry_request(_fetch_once, f"股票 {symbol}")
-
-        # 检查返回数据是否为空
         if stock_df is None or stock_df.empty:
+            if last_error:
+                raise last_error
             print(f"警告：股票 {symbol} 没有返回任何数据")
             return pd.DataFrame()
-
-        # 确保列名是英文的
-        if '日期' in stock_df.columns:
-            stock_df = stock_df.rename(columns={
-                '日期': 'date',
-                '开盘': 'open',
-                '收盘': 'close',
-                '最高': 'high',
-                '最低': 'low',
-                '成交量': 'volume',
-                '成交额': 'amount'
-            })
-
-        # 检查必要的列是否存在
-        required_columns = ['close', 'open', 'high', 'low', 'volume']
-        missing_columns = [col for col in required_columns if col not in stock_df.columns]
-        if missing_columns:
-            print(f"警告：股票 {symbol} 数据缺少列: {missing_columns}")
-            return pd.DataFrame()
-
-        # 将日期列转换为datetime类型
-        if 'date' in stock_df.columns:
-            stock_df['date'] = pd.to_datetime(stock_df['date'])
-            stock_df.set_index('date', inplace=True)
-
-        # 确保数据按日期排序
-        stock_df = stock_df.sort_index()
-
-        # 移除任何包含NaN的行
-        stock_df = stock_df.dropna()
 
         # 验证数据完整性
         if len(stock_df) < 10:  # 至少需要10条记录
@@ -253,7 +358,7 @@ def get_index_data(symbol: str = "000001", period: str = "daily",
         last_error = None
         for fetch_fn, label in ((_fetch_sina, "sina"), (_fetch_em, "eastmoney")):
             try:
-                raw = _retry_request(fetch_fn, f"指数 {symbol}/{label}")
+                raw = _retry_request(fetch_fn, f"指数 {symbol}/{label}", max_retries=2)
                 index_df = _normalize_index_frame(raw)
                 if not index_df.empty:
                     break
@@ -317,7 +422,7 @@ def get_stock_info(symbol: str) -> dict:
         def _fetch_info_once():
             return ak.stock_individual_info_em(symbol=symbol)
 
-        stock_info = _retry_request(_fetch_info_once, f"股票信息 {symbol}")
+        stock_info = _retry_request(_fetch_info_once, f"股票信息 {symbol}", max_retries=3)
 
         if stock_info is None or (isinstance(stock_info, pd.DataFrame) and stock_info.empty):
             print(f"警告：无法获取股票 {symbol} 的基本信息")
